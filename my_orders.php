@@ -9,13 +9,10 @@ if (!isset($_SESSION['student_id'])) {
 
 $student_id = $_SESSION['student_id'];
 
-$notification = '';
-$notification_type = '';
-if (isset($_GET['success']) && $_GET['success'] === 'order_placed') {
-    $order_number = $_GET['order_number'] ?? '';
-    $notification = "Sipariş başarıyla oluşturuldu! Sipariş No: " . $order_number;
-    $notification_type = "success";
-}
+// Öğrenci bilgilerini al
+$stmt = $pdo->prepare("SELECT * FROM students WHERE id = ?");
+$stmt->execute([$student_id]);
+$student = $stmt->fetch();
 
 // Öğrencinin siparişlerini getir
 $stmt = $pdo->prepare("
@@ -34,80 +31,128 @@ $orders = $stmt->fetchAll();
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Siparişlerim</title>
+    <title>Siparişlerim - E-Ticaret</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f6fa; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f5f6fa; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3); display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 28px; }
-        .header-buttons { display: flex; gap: 15px; }
-        .btn { padding: 12px 24px; border: none; border-radius: 25px; text-decoration: none; font-weight: bold; transition: all 0.3s; cursor: pointer; display: inline-block; text-align: center; }
-        .btn-secondary { background: rgba(255,255,255,0.2); color: white; }
-        .btn-secondary:hover { background: rgba(255,255,255,0.3); }
-        .btn-primary { background: rgba(255,255,255,0.9); color: #667eea; }
-        .btn-primary:hover { background: white; transform: translateY(-2px); }
+        /* HEADER */
+        .header { background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 15px; padding: 20px; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .header-container { display: flex; justify-content: space-between; align-items: center; }
         
-        .orders-section { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .section-header { margin-bottom: 25px; }
-        .section-header h2 { color: #2d3748; }
+        .header-brand { display: flex; align-items: center; gap: 15px; color: #333; }
+        .profile-image { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #e9ecef; }
+        .profile-placeholder { width: 50px; height: 50px; border-radius: 50%; background: #e9ecef; }
+        .student-name { font-size: 24px; font-weight: 700; margin-bottom: 5px; }
+        .student-class { font-size: 16px; font-weight: 400; color: #666; }
         
-        .order-card { border: 2px solid #e2e8f0; border-radius: 15px; padding: 25px; margin-bottom: 20px; transition: all 0.3s; }
-        .order-card:hover { border-color: #667eea; transform: translateY(-2px); }
+        .header-nav { display: flex; gap: 20px; align-items: center; }
+        .nav-link { color: #333; text-decoration: none; font-weight: 500; padding: 10px 16px; border-radius: 8px; }
+        .nav-link:hover { background: #e9ecef; }
+        .nav-link.active { background: #333; color: white; }
+        
+        /* ORDERS */
+        .orders-section { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
+        .orders-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 30px; }
+        
+        .order-card { border: 2px solid #f0f0f0; border-radius: 15px; padding: 25px; margin-bottom: 20px; transition: all 0.2s; }
+        .order-card:hover { border-color: #e9ecef; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         
         .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .order-number { font-size: 18px; font-weight: bold; color: #2d3748; }
-        .order-date { color: #718096; }
+        .order-number { font-size: 18px; font-weight: 700; color: #333; }
+        .order-date { color: #666; font-size: 14px; }
         
-        .status-badge { padding: 6px 15px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-        .status-beklemede { background: #fef5e7; color: #d69e2e; }
-        .status-onaylandi { background: #e6fffa; color: #2c7a7b; }
-        .status-hazirlaniyor { background: #ebf8ff; color: #2b6cb0; }
-        .status-kargoda { background: #f0f4ff; color: #5a67d8; }
-        .status-teslim_edildi { background: #f0fff4; color: #22543d; }
-        .status-iptal { background: #fed7d7; color: #c53030; }
+        .status-badge { padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+        .status-beklemede { background: #fff3cd; color: #856404; }
+        .status-onaylandi { background: #d1ecf1; color: #0c5460; }
+        .status-hazirlaniyor { background: #cce5ff; color: #004085; }
+        .status-kargoda { background: #e2e3ff; color: #383d41; }
+        .status-teslim_edildi { background: #d4edda; color: #155724; }
+        .status-iptal { background: #f8d7da; color: #721c24; }
         
-        .order-details { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; align-items: start; }
-        .order-items { }
-        .order-items h4 { color: #4a5568; margin-bottom: 10px; }
-        .product-list { color: #718096; line-height: 1.6; }
+        .order-details { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; align-items: center; }
+        .order-items h4 { color: #333; margin-bottom: 8px; font-size: 16px; }
+        .product-list { color: #666; line-height: 1.5; font-size: 14px; }
+        .order-payment { text-align: center; }
+        .payment-method { font-weight: 600; color: #333; margin-bottom: 5px; }
         .order-summary { text-align: right; }
-        .order-total { font-size: 24px; font-weight: bold; color: #667eea; }
-        .order-method { color: #718096; margin-top: 5px; }
+        .order-total { font-size: 20px; font-weight: 700; color: #28a745; }
         
-        .empty-state { text-align: center; padding: 60px; color: #718096; }
-        .empty-state h3 { margin-bottom: 10px; }
+        /* BOŞ DURUM */
+        .empty-orders { text-align: center; padding: 80px 20px; color: #666; }
+        .empty-orders h3 { font-size: 24px; margin-bottom: 15px; color: #333; }
+        .empty-orders p { font-size: 18px; margin-bottom: 30px; }
+        .btn { 
+            padding: 15px 30px; 
+            border: none; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            text-decoration: none; 
+            text-align: center; 
+            font-size: 16px; 
+            font-weight: 600;
+        }
+        .btn-primary { background: linear-gradient(135deg, #333 0%, #555 100%); color: white; }
         
-        .notification { position: fixed; bottom: 100px; right: 30px; padding: 15px 25px; border-radius: 10px; color: white; font-weight: 600; z-index: 1000; transform: translateX(400px); transition: transform 0.3s; }
-        .notification.success { background: #48bb78; }
-        .notification.show { transform: translateX(0); }
+        /* MOBİL */
+        @media (max-width: 1024px) {
+            .order-details { grid-template-columns: 1fr; gap: 15px; text-align: center; }
+        }
         
         @media (max-width: 768px) {
-            .container { padding: 10px; }
-            .header { flex-direction: column; gap: 15px; text-align: center; }
+            .container { padding: 15px; }
+            .header-container { flex-direction: column; gap: 15px; }
+            .header-nav { flex-wrap: wrap; justify-content: center; }
+            
+            .orders-section { padding: 20px; }
+            .order-card { padding: 20px; }
             .order-header { flex-direction: column; gap: 10px; text-align: center; }
-            .order-details { grid-template-columns: 1fr; gap: 15px; text-align: center; }
+            .orders-title { font-size: 24px; }
+        }
+        
+        @media (max-width: 480px) {
+            .container { padding: 10px; }
+            .orders-section { padding: 15px; }
+            .order-card { padding: 15px; }
+            .orders-title { font-size: 22px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- HEADER -->
         <div class="header">
-            <h1>Siparişlerim</h1>
-            <div class="header-buttons">
-                <a href="index.php" class="btn btn-secondary">Ana Sayfa</a>
-                <a href="cart.php" class="btn btn-primary">Sepetim</a>
-                <a href="student_login.php" class="btn btn-secondary">Çıkış</a>
+            <div class="header-container">
+                <div class="header-brand">
+                    <?php if ($student['profile_image']): ?>
+                        <img src="uploads/<?= htmlspecialchars($student['profile_image']) ?>" class="profile-image" alt="Profil">
+                    <?php else: ?>
+                        <div class="profile-placeholder"></div>
+                    <?php endif; ?>
+                    
+                    <div class="student-info">
+                        <div class="student-name"><?= htmlspecialchars($student['full_name']) ?></div>
+                        <div class="student-class"><?= htmlspecialchars($student['class']) ?></div>
+                    </div>
+                </div>
+                
+                <nav class="header-nav">
+                    <a href="index.php" class="nav-link">Anasayfa</a>
+                    <a href="profile.php" class="nav-link">Profil</a>
+                    <a href="cart.php" class="nav-link">Sepetim</a>
+                    <a href="my_orders.php" class="nav-link active">Siparişlerim</a>
+                    <a href="student_login.php" class="nav-link">Çıkış</a>
+                </nav>
             </div>
         </div>
         
+        <!-- SİPARİŞLER -->
         <div class="orders-section">
-            <div class="section-header">
-                <h2>Siparişlerim (<?= count($orders) ?> sipariş)</h2>
-            </div>
+            <h1 class="orders-title">Siparişlerim (<?= count($orders) ?> sipariş)</h1>
             
             <?php if (count($orders) > 0): ?>
                 <?php foreach ($orders as $order): ?>
@@ -140,47 +185,32 @@ $orders = $stmt->fetchAll();
                                 </div>
                             </div>
                             
-                            <div class="order-method">
-                                <strong>Ödeme:</strong><br>
-                                <?php
-                                $payment_labels = [
-                                    'eft' => 'EFT/Havale',
-                                    'kredi_karti' => 'Kredi Kartı'
-                                ];
-                                echo $payment_labels[$order['payment_method']] ?? $order['payment_method'];
-                                ?>
+                            <div class="order-payment">
+                                <div class="payment-method">
+                                    <?php
+                                    $payment_labels = [
+                                        'eft' => 'EFT/Havale',
+                                        'kredi_karti' => 'Kredi Kartı'
+                                    ];
+                                    echo $payment_labels[$order['payment_method']] ?? $order['payment_method'];
+                                    ?>
+                                </div>
                             </div>
                             
                             <div class="order-summary">
-                                <div class="order-total"><?= number_format($order['total_amount'], 2) ?> ₺</div>
+                                <div class="order-total"><?= number_format($order['total_amount'], 2) ?> TL</div>
                             </div>
                         </div>
                     </div>
                 <?php endforeach; ?>
             <?php else: ?>
-                <div class="empty-state">
+                <div class="empty-orders">
                     <h3>Henüz siparişiniz yok</h3>
                     <p>İlk siparişinizi vermek için alışverişe başlayın!</p>
-                    <br>
                     <a href="index.php" class="btn btn-primary">Alışverişe Başla</a>
                 </div>
             <?php endif; ?>
         </div>
     </div>
-    
-    <?php if ($notification): ?>
-        <div class="notification <?= $notification_type ?>" id="notification">
-            <?= htmlspecialchars($notification) ?>
-        </div>
-        <script>
-            const notification = document.getElementById('notification');
-            setTimeout(() => notification.classList.add('show'), 100);
-            setTimeout(() => notification.classList.remove('show'), 4000);
-            
-            if (window.history.replaceState) {
-                window.history.replaceState(null, null, window.location.pathname);
-            }
-        </script>
-    <?php endif; ?>
 </body>
 </html>

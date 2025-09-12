@@ -31,10 +31,17 @@ if (empty($cart_items)) {
 }
 
 // Toplam fiyat hesapla
-$total_amount = 0;
+$subtotal = 0;
 foreach ($cart_items as $item) {
-    $total_amount += $item['price'] * $item['quantity'];
+    $subtotal += $item['price'] * $item['quantity'];
 }
+$kdv_amount = $subtotal * 0.20;
+$total_amount = $subtotal + $kdv_amount;
+
+// Sepet sayısı
+$cart_count_stmt = $pdo->prepare("SELECT COUNT(*) FROM cart WHERE student_id = ?");
+$cart_count_stmt->execute([$student_id]);
+$cart_count = $cart_count_stmt->fetchColumn();
 
 $notification = '';
 $notification_type = '';
@@ -47,8 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         
         // Sipariş oluştur
         $stmt = $pdo->prepare("
-            INSERT INTO orders (student_id, order_number, total_amount, payment_method, status, student_name, student_class, student_phone, student_address) 
-            VALUES (?, ?, ?, ?, 'beklemede', ?, ?, ?, ?)
+            INSERT INTO orders (student_id, order_number, total_amount, payment_method, status, student_name, student_class, student_phone, student_address, parent_name, parent_phone, parent_address) 
+            VALUES (?, ?, ?, ?, 'beklemede', ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([
             $student_id, 
@@ -58,14 +65,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             $student['full_name'], 
             $student['class'], 
             $student['phone'], 
-            $student['address']
+            $student['address'],
+            $student['parent_name'],
+            $student['parent_phone'],
+            $student['parent_address']
         ]);
         
         $order_id = $pdo->lastInsertId();
         
         // Sipariş detaylarını ekle ve stok güncelle
         foreach ($cart_items as $item) {
-            // Sipariş detayı ekle
             $stmt = $pdo->prepare("
                 INSERT INTO order_items (order_id, product_id, product_name, product_price, quantity, total_price) 
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -79,7 +88,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
                 $item['price'] * $item['quantity']
             ]);
             
-            // Stok güncelle
             $stmt = $pdo->prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
             $stmt->execute([$item['quantity'], $item['product_id']]);
         }
@@ -91,7 +99,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         $stmt = $pdo->prepare("DELETE FROM cart WHERE student_id = ?");
         $stmt->execute([$student_id]);
         
-        // Başarı sayfasına yönlendir
         header("Location: order_success.php?order_number=" . $order_number);
         exit;
         
@@ -104,182 +111,343 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Sipariş Tamamla</title>
+    <title>Ödeme - E-Ticaret</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f6fa; }
-        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f5f6fa; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3); display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 28px; }
-        .header-buttons { display: flex; gap: 15px; }
-        .btn { padding: 12px 24px; border: none; border-radius: 25px; text-decoration: none; font-weight: bold; transition: all 0.3s; cursor: pointer; display: inline-block; text-align: center; }
-        .btn-secondary { background: rgba(255,255,255,0.2); color: white; }
-        .btn-secondary:hover { background: rgba(255,255,255,0.3); }
-        .btn-success { background: #48bb78; color: white; font-size: 18px; padding: 15px 30px; }
-        .btn-success:hover { background: #38a169; transform: translateY(-2px); }
-        .btn-success:disabled { background: #cbd5e0; cursor: not-allowed; transform: none; }
+        /* HEADER */
+        .header { background: white; border: 2px solid #f0f0f0; border-radius: 15px; padding: 20px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .header-container { display: flex; justify-content: space-between; align-items: center; }
         
-        .checkout-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
-        .checkout-section { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .header-brand { display: flex; align-items: center; gap: 15px; color: #333; }
+        .profile-image { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #f0f0f0; }
+        .profile-placeholder { width: 50px; height: 50px; border-radius: 50%; background: #e9ecef; }
+        .student-name { font-size: 24px; font-weight: 700; margin-bottom: 5px; }
+        .student-class { font-size: 16px; font-weight: 400; color: #666; }
         
-        .order-summary h3 { color: #2d3748; margin-bottom: 20px; }
-        .order-item { display: flex; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid #e2e8f0; }
+        .header-nav { display: flex; gap: 20px; align-items: center; }
+        .nav-link { 
+            color: #333; 
+            text-decoration: none; 
+            font-weight: 500; 
+            padding: 10px 16px; 
+            border-radius: 8px;
+        }
+        .nav-link:hover { background: #f0f0f0; }
+        .nav-link.active { background: #333; color: white; }
+        .cart-count { font-weight: 700; color: #333; }
+        
+        /* CHECKOUT LAYOUT */
+        .checkout-container { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
+        
+        /* SOL TARAF - ÖDEME FORMU */
+        .payment-section { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
+        
+        .section-title { font-size: 24px; font-weight: 700; color: #333; margin-bottom: 8px; }
+        .section-subtitle { color: #666; margin-bottom: 32px; font-size: 16px; }
+        
+        /* BİLGİ SECTIONS */
+        .info-section { background: #f8f9fa; border: 2px solid #f0f0f0; border-radius: 15px; padding: 25px; margin-bottom: 25px; }
+        .info-title { font-size: 18px; font-weight: 600; color: #333; margin-bottom: 16px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .info-item { }
+        .info-label { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .info-value { font-size: 16px; color: #333; font-weight: 500; }
+        .info-value-full { grid-column: 1 / -1; }
+        
+        /* ÖDEME YÖNTEMLERİ */
+        .payment-methods { margin-bottom: 32px; }
+        .method-title { font-size: 18px; font-weight: 600; color: #333; margin-bottom: 20px; }
+        .method-options { display: grid; gap: 16px; }
+        .method-option { 
+            border: 2px solid #f0f0f0; 
+            border-radius: 15px; 
+            padding: 20px; 
+            cursor: pointer; 
+            position: relative;
+        }
+        .method-option:hover { border-color: #333; background: #f8f9fa; }
+        .method-option.selected { border-color: #333; background: #f8f9fa; }
+        .method-option input[type="radio"] { position: absolute; opacity: 0; }
+        .method-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .method-name { font-size: 16px; font-weight: 600; color: #333; }
+        .method-desc { color: #666; font-size: 14px; }
+        
+        /* KVKK */
+        .kvkk-section { margin-bottom: 20px; }
+        .checkbox-group { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 15px; }
+        .checkbox-group input[type="checkbox"] { margin-top: 5px; }
+        .checkbox-label { color: #333; font-size: 14px; line-height: 1.4; }
+        .checkbox-label a { color: #333; text-decoration: underline; }
+        
+        /* SAĞ TARAF - SİPARİŞ ÖZETİ */
+        .order-summary { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; position: sticky; top: 20px; }
+        .summary-title { font-size: 20px; font-weight: 700; color: #333; margin-bottom: 24px; }
+        
+        .order-items { margin-bottom: 24px; }
+        .order-item { display: flex; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid #f0f0f0; }
         .order-item:last-child { border-bottom: none; }
-        .item-image { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; }
+        .item-image { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #f0f0f0; }
         .item-details { flex: 1; }
-        .item-name { font-weight: 600; color: #2d3748; }
-        .item-price { color: #667eea; font-weight: 600; }
-        .item-quantity { color: #718096; font-size: 14px; }
+        .item-name { font-size: 15px; font-weight: 600; color: #333; margin-bottom: 4px; }
+        .item-quantity { font-size: 13px; color: #666; }
+        .item-price { font-size: 16px; font-weight: 600; color: #333; }
         
-        .summary-total { background: #f7fafc; padding: 20px; border-radius: 10px; margin-top: 20px; }
-        .summary-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
-        .summary-final { font-size: 24px; font-weight: bold; color: #2d3748; border-top: 2px solid #e2e8f0; padding-top: 15px; margin-top: 15px; }
+        /* FIYAT ÖZETİ */
+        .price-breakdown { border-top: 2px solid #f0f0f0; padding-top: 20px; }
+        .price-row { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .price-label { color: #666; font-size: 16px; }
+        .price-value { font-weight: 600; color: #333; font-size: 16px; }
+        .total-row { border-top: 2px solid #f0f0f0; padding-top: 16px; margin-top: 16px; }
+        .total-label { font-size: 18px; font-weight: 700; color: #333; }
+        .total-value { font-size: 24px; font-weight: 700; color: #28a745; }
         
-        .payment-section h3 { color: #2d3748; margin-bottom: 20px; }
-        .payment-methods { display: grid; gap: 15px; margin-bottom: 30px; }
-        .payment-option { border: 2px solid #e2e8f0; border-radius: 10px; padding: 20px; cursor: pointer; transition: all 0.3s; }
-        .payment-option:hover { border-color: #667eea; background: #f0f4ff; }
-        .payment-option.selected { border-color: #667eea; background: #f0f4ff; }
-        .payment-option input[type="radio"] { margin-right: 12px; }
-        .payment-title { font-weight: 600; color: #2d3748; margin-bottom: 5px; }
-        .payment-desc { color: #718096; font-size: 14px; }
+        /* BUTONLAR */
+        .action-buttons { display: flex; gap: 16px; margin-top: 32px; }
+        .btn { 
+            padding: 16px 32px; 
+            border: none; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            text-decoration: none; 
+            display: inline-block; 
+            text-align: center; 
+            font-size: 16px; 
+            font-weight: 600;
+            flex: 1;
+        }
+        .btn-secondary { background: #f8f9fa; color: #666; border: 2px solid #f0f0f0; }
+        .btn-secondary:hover { background: #e9ecef; }
+        .btn-primary { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; }
+        .btn-primary:disabled { background: #e9ecef; color: #666; cursor: not-allowed; }
         
-        .credit-card-form { display: none; margin-top: 20px; padding: 20px; background: #f7fafc; border-radius: 10px; }
-        .credit-card-form.show { display: block; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        .form-full { grid-column: 1 / -1; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #2d3748; }
-        .form-group input { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; }
-        .form-group input:focus { outline: none; border-color: #667eea; }
-        
-        .student-info { background: #f7fafc; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
-        .student-info h4 { color: #2d3748; margin-bottom: 15px; }
-        .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
-        
-        .notification { position: fixed; bottom: 100px; right: 30px; padding: 15px 25px; border-radius: 10px; color: white; font-weight: 600; z-index: 1000; transform: translateX(400px); transition: transform 0.3s; }
-        .notification.error { background: #e53e3e; }
+        /* NOTIFICATION */
+        .notification { 
+            position: fixed; 
+            bottom: 30px; 
+            right: 30px; 
+            padding: 16px 24px; 
+            border-radius: 12px; 
+            color: white; 
+            font-weight: 600; 
+            z-index: 1000; 
+            transform: translateX(400px); 
+            transition: transform 0.3s;
+        }
+        .notification.error { background: #dc3545; }
         .notification.show { transform: translateX(0); }
         
+        /* RESPONSIVE */
+        @media (max-width: 1024px) {
+            .checkout-container { grid-template-columns: 1fr; }
+            .order-summary { position: static; }
+        }
+        
         @media (max-width: 768px) {
+            .container { padding: 15px; }
+            .header-container { flex-direction: column; gap: 15px; }
+            .header-nav { flex-wrap: wrap; justify-content: center; }
+            
+            .payment-section, .order-summary { padding: 20px; }
+            .section-title { font-size: 22px; }
+            .info-grid { grid-template-columns: 1fr; }
+            .action-buttons { flex-direction: column; }
+        }
+        
+        @media (max-width: 480px) {
             .container { padding: 10px; }
-            .header { flex-direction: column; gap: 15px; text-align: center; }
-            .checkout-grid { grid-template-columns: 1fr; }
-            .order-item { flex-direction: column; text-align: center; }
-            .form-row { grid-template-columns: 1fr; }
+            .payment-section, .order-summary { padding: 20px 16px; }
+            .section-title { font-size: 20px; }
+            .info-section { padding: 20px; }
+            
+            .notification { 
+                bottom: 20px; 
+                right: 20px; 
+                left: 20px;
+                transform: translateY(100px);
+            }
+            .notification.show { transform: translateY(0); }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Sipariş Tamamla</h1>
-            <div class="header-buttons">
-                <a href="cart.php" class="btn btn-secondary">Sepete Dön</a>
-                <a href="index.php" class="btn btn-secondary">Ana Sayfa</a>
-            </div>
-        </div>
-        
-        <div class="checkout-grid">
-            <div class="checkout-section payment-section">
-                <h3>Ödeme Bilgileri</h3>
-                
-                <div class="student-info">
-                    <h4>Teslimat Bilgileri</h4>
-                    <div class="info-row">
-                        <span>Ad Soyad:</span>
-                        <strong><?= htmlspecialchars($student['full_name']) ?></strong>
-                    </div>
-                    <div class="info-row">
-                        <span>Sınıf:</span>
-                        <strong><?= htmlspecialchars($student['class']) ?></strong>
-                    </div>
-                    <div class="info-row">
-                        <span>Telefon:</span>
-                        <strong><?= htmlspecialchars($student['phone'] ?: 'Belirtilmemiş') ?></strong>
-                    </div>
-                    <div class="info-row">
-                        <span>Adres:</span>
-                        <strong><?= htmlspecialchars($student['address'] ?: 'Belirtilmemiş') ?></strong>
+            <div class="header-container">
+                <div class="header-brand">
+                    <?php if ($student['profile_image']): ?>
+                        <img src="uploads/<?= htmlspecialchars($student['profile_image']) ?>" class="profile-image" alt="Profil">
+                    <?php else: ?>
+                        <div class="profile-placeholder"></div>
+                    <?php endif; ?>
+                    
+                    <div class="student-info">
+                        <div class="student-name"><?= htmlspecialchars($student['full_name']) ?></div>
+                        <div class="student-class"><?= htmlspecialchars($student['class']) ?></div>
                     </div>
                 </div>
                 
+                <nav class="header-nav">
+                    <a href="index.php" class="nav-link">Anasayfa</a>
+                    <a href="profile.php" class="nav-link">Profil</a>
+                    <a href="cart.php" class="nav-link">
+                        Sepetim 
+                        <?php if ($cart_count > 0): ?>
+                            (<span class="cart-count"><?= $cart_count ?></span>)
+                        <?php endif; ?>
+                    </a>
+                    <a href="my_orders.php" class="nav-link">Siparişlerim</a>
+                    <a href="student_login.php" class="nav-link">Çıkış</a>
+                </nav>
+            </div>
+        </div>
+        
+        <div class="checkout-container">
+            <!-- SOL TARAF - ÖDEME FORMU -->
+            <div class="payment-section">
+                <h1 class="section-title">Ödeme Bilgileri</h1>
+                <p class="section-subtitle">Siparişinizi tamamlamak için gerekli bilgileri kontrol edin</p>
+                
+                <!-- ÖĞRENCİ BİLGİLERİ -->
+                <div class="info-section">
+                    <h3 class="info-title">👤 Öğrenci Bilgileri</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Ad Soyad</div>
+                            <div class="info-value"><?= htmlspecialchars($student['full_name']) ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Sınıf</div>
+                            <div class="info-value"><?= htmlspecialchars($student['class']) ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Telefon</div>
+                            <div class="info-value"><?= htmlspecialchars($student['phone'] ?: 'Belirtilmemiş') ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">E-posta</div>
+                            <div class="info-value"><?= htmlspecialchars($student['email'] ?: 'Belirtilmemiş') ?></div>
+                        </div>
+                        <div class="info-item info-value-full">
+                            <div class="info-label">Adres</div>
+                            <div class="info-value"><?= htmlspecialchars($student['address'] ?: 'Belirtilmemiş') ?></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- VELİ BİLGİLERİ -->
+                <div class="info-section">
+                    <h3 class="info-title">👨‍👩‍👧‍👦 Veli Bilgileri</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Veli Ad Soyad</div>
+                            <div class="info-value"><?= htmlspecialchars($student['parent_name'] ?: 'Belirtilmemiş') ?></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Veli Telefon</div>
+                            <div class="info-value"><?= htmlspecialchars($student['parent_phone'] ?: 'Belirtilmemiş') ?></div>
+                        </div>
+                        <div class="info-item info-value-full">
+                            <div class="info-label">Veli Adres</div>
+                            <div class="info-value"><?= htmlspecialchars($student['parent_address'] ?: 'Belirtilmemiş') ?></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ÖDEME YÖNTEMLERİ -->
                 <form method="POST" id="checkoutForm">
                     <div class="payment-methods">
-                        <label class="payment-option" onclick="selectPayment('eft')">
-                            <input type="radio" name="payment_method" value="eft" required>
-                            <div class="payment-title">EFT / Havale</div>
-                            <div class="payment-desc">Banka hesabına para transferi</div>
-                        </label>
-                        
-                        <label class="payment-option" onclick="selectPayment('kredi_karti')">
-                            <input type="radio" name="payment_method" value="kredi_karti" required>
-                            <div class="payment-title">Kredi Kartı</div>
-                            <div class="payment-desc">Visa, MasterCard kabul edilir</div>
-                        </label>
-                    </div>
-                    
-                    <div class="credit-card-form" id="creditCardForm">
-                        <h4 style="margin-bottom: 20px; color: #2d3748;">Kredi Kartı Bilgileri</h4>
-                        <div class="form-group">
-                            <label>Kart Üzerindeki İsim</label>
-                            <input type="text" id="cardName" placeholder="Ad Soyad">
-                        </div>
-                        <div class="form-group">
-                            <label>Kart Numarası</label>
-                            <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19">
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Son Kullanma Tarihi</label>
-                                <input type="text" id="cardExpiry" placeholder="MM/YY" maxlength="5">
-                            </div>
-                            <div class="form-group">
-                                <label>CVV</label>
-                                <input type="text" id="cardCvv" placeholder="123" maxlength="3">
-                            </div>
+                        <h3 class="method-title">Ödeme Yöntemi Seçin</h3>
+                        <div class="method-options">
+                            <label class="method-option" onclick="selectPayment('eft')">
+                                <input type="radio" name="payment_method" value="eft" required>
+                                <div class="method-header">
+                                    <div class="method-name">EFT / Havale</div>
+                                </div>
+                                <div class="method-desc">Banka hesabına para transferi ile ödeme</div>
+                            </label>
+                            
+                            <label class="method-option" onclick="selectPayment('kredi_karti')">
+                                <input type="radio" name="payment_method" value="kredi_karti" required>
+                                <div class="method-header">
+                                    <div class="method-name">Kredi Kartı</div>
+                                </div>
+                                <div class="method-desc">Visa, MasterCard ve diğer kartlar kabul edilir</div>
+                            </label>
                         </div>
                     </div>
                     
-                    <button type="submit" name="place_order" class="btn btn-success" id="submitBtn" style="width: 100%;" disabled>
-                        Ödeme Yöntemi Seçin
-                    </button>
+                    <!-- KVKK VE KULLANIM ŞARTLARI -->
+                    <div class="kvkk-section">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="kvkk" name="kvkk" required>
+                            <label for="kvkk" class="checkbox-label">
+                                <a href="#" onclick="showKVKK()">KVKK Aydınlatma Metni</a>ni okudum ve kabul ediyorum.
+                            </label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="terms" name="terms" required>
+                            <label for="terms" class="checkbox-label">
+                                <a href="#" onclick="showTerms()">Kullanım Şartları</a>nı okudum ve kabul ediyorum.
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <a href="cart.php" class="btn btn-secondary">Sepete Dön</a>
+                        <button type="submit" name="place_order" class="btn btn-primary" id="submitBtn" disabled>
+                            Ödeme Yöntemi Seçin
+                        </button>
+                    </div>
                 </form>
             </div>
             
-            <div class="checkout-section order-summary">
-                <h3>Sipariş Özeti</h3>
+            <!-- SAĞ TARAF - SİPARİŞ ÖZETİ -->
+            <div class="order-summary">
+                <h2 class="summary-title">Sipariş Özeti</h2>
                 
-                <?php foreach ($cart_items as $item): ?>
-                    <?php 
-                    $images = json_decode($item['images'], true) ?: [];
-                    $first_image = !empty($images) ? $images[0] : 'placeholder.jpg';
-                    ?>
-                    <div class="order-item">
-                        <img src="uploads/<?= htmlspecialchars($first_image) ?>" alt="<?= htmlspecialchars($item['name']) ?>" class="item-image">
-                        <div class="item-details">
-                            <div class="item-name"><?= htmlspecialchars($item['name']) ?></div>
-                            <div class="item-quantity"><?= $item['quantity'] ?> adet</div>
-                            <div class="item-price"><?= number_format($item['price'] * $item['quantity'], 2) ?> ₺</div>
+                <div class="order-items">
+                    <?php foreach ($cart_items as $item): ?>
+                        <?php 
+                        $images = json_decode($item['images'], true) ?: [];
+                        $first_image = !empty($images) ? $images[0] : 'placeholder.jpg';
+                        ?>
+                        <div class="order-item">
+                            <img src="uploads/<?= htmlspecialchars($first_image) ?>" alt="<?= htmlspecialchars($item['name']) ?>" class="item-image">
+                            <div class="item-details">
+                                <div class="item-name"><?= htmlspecialchars($item['name']) ?></div>
+                                <div class="item-quantity"><?= $item['quantity'] ?> adet</div>
+                            </div>
+                            <div class="item-price"><?= number_format($item['price'] * $item['quantity'], 2) ?> TL</div>
                         </div>
-                    </div>
-                <?php endforeach; ?>
+                    <?php endforeach; ?>
+                </div>
                 
-                <div class="summary-total">
-                    <div class="summary-row">
-                        <span>Ürün Sayısı:</span>
-                        <span><?= count($cart_items) ?> çeşit</span>
+                <div class="price-breakdown">
+                    <div class="price-row">
+                        <span class="price-label">Ürün Sayısı:</span>
+                        <span class="price-value"><?= count($cart_items) ?> çeşit</span>
                     </div>
-                    <div class="summary-row">
-                        <span>Toplam Miktar:</span>
-                        <span><?= array_sum(array_column($cart_items, 'quantity')) ?> adet</span>
+                    <div class="price-row">
+                        <span class="price-label">Toplam Adet:</span>
+                        <span class="price-value"><?= array_sum(array_column($cart_items, 'quantity')) ?> adet</span>
                     </div>
-                    <div class="summary-row summary-final">
-                        <span>Genel Toplam:</span>
-                        <span><?= number_format($total_amount, 2) ?> ₺</span>
+                    <div class="price-row">
+                        <span class="price-label">Ara Toplam:</span>
+                        <span class="price-value"><?= number_format($subtotal, 2) ?> TL</span>
+                    </div>
+                    <div class="price-row">
+                        <span class="price-label">KDV (%20):</span>
+                        <span class="price-value"><?= number_format($kdv_amount, 2) ?> TL</span>
+                    </div>
+                    <div class="price-row total-row">
+                        <span class="total-label">Toplam:</span>
+                        <span class="total-value"><?= number_format($total_amount, 2) ?> TL</span>
                     </div>
                 </div>
             </div>
@@ -299,67 +467,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     
     <script>
         function selectPayment(method) {
-            document.querySelectorAll('.payment-option').forEach(option => {
+            // Tüm seçeneklerin selected class'ını kaldır
+            document.querySelectorAll('.method-option').forEach(option => {
                 option.classList.remove('selected');
             });
+            
+            // Tıklanan seçeneği selected yap
             event.currentTarget.classList.add('selected');
             
-            const creditCardForm = document.getElementById('creditCardForm');
             const submitBtn = document.getElementById('submitBtn');
-            
-            if (method === 'kredi_karti') {
-                creditCardForm.classList.add('show');
-                submitBtn.textContent = 'Ödeme Yap (<?= number_format($total_amount, 2) ?> ₺)';
-                checkCreditCardForm();
-            } else {
-                creditCardForm.classList.remove('show');
-                submitBtn.textContent = 'Siparişi Tamamla (<?= number_format($total_amount, 2) ?> ₺)';
-                submitBtn.disabled = false;
-            }
+            submitBtn.textContent = 'Siparişi Tamamla (<?= number_format($total_amount, 2) ?> TL)';
+            checkFormValidity();
         }
         
-        function checkCreditCardForm() {
-            const cardName = document.getElementById('cardName').value;
-            const cardNumber = document.getElementById('cardNumber').value;
-            const cardExpiry = document.getElementById('cardExpiry').value;
-            const cardCvv = document.getElementById('cardCvv').value;
+        function checkFormValidity() {
+            const paymentSelected = document.querySelector('input[name="payment_method"]:checked');
+            const kvkkChecked = document.getElementById('kvkk').checked;
+            const termsChecked = document.getElementById('terms').checked;
             const submitBtn = document.getElementById('submitBtn');
             
-            if (cardName && cardNumber.length >= 16 && cardExpiry.length === 5 && cardCvv.length === 3) {
+            if (paymentSelected && kvkkChecked && termsChecked) {
                 submitBtn.disabled = false;
             } else {
                 submitBtn.disabled = true;
             }
         }
         
-        // Kart numarası formatla
-        document.getElementById('cardNumber').addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\s/g, '').replace(/[^0-9]/gi, '');
-            let formattedValue = value.match(/.{1,4}/g)?.join(' ');
-            if (formattedValue) {
-                e.target.value = formattedValue;
-            }
-            checkCreditCardForm();
-        });
+        // Checkbox'ları dinle
+        document.getElementById('kvkk').addEventListener('change', checkFormValidity);
+        document.getElementById('terms').addEventListener('change', checkFormValidity);
         
-        // Expiry formatla
-        document.getElementById('cardExpiry').addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length >= 2) {
-                value = value.substring(0, 2) + '/' + value.substring(2, 4);
-            }
-            e.target.value = value;
-            checkCreditCardForm();
-        });
+        function showKVKK() {
+            alert('KVKK Aydınlatma Metni:\n\n1. Kişisel verileriniz güvenli şekilde saklanmaktadır.\n2. Verileriniz sadece sipariş işlemleri için kullanılır.\n3. Verileriniz üçüncü taraflarla paylaşılmaz.\n4. İstediğiniz zaman verilerinizi silebilirsiniz.\n5. Detaylı bilgi için iletişime geçebilirsiniz.');
+        }
         
-        // CVV sadece rakam
-        document.getElementById('cardCvv').addEventListener('input', function(e) {
-            e.target.value = e.target.value.replace(/[^0-9]/g, '');
-            checkCreditCardForm();
-        });
-        
-        // İsim alanı kontrolü
-        document.getElementById('cardName').addEventListener('input', checkCreditCardForm);
+        function showTerms() {
+            alert('Kullanım Şartları:\n\n1. Siparişler onay sonrası iptal edilemez.\n2. Ürün fiyatları KDV dahildir.\n3. Teslimat 1-3 iş günü içinde yapılır.\n4. Ödeme onayı sonrası sipariş hazırlanır.\n5. Sorunlar için müşteri hizmetlerine başvurun.');
+        }
     </script>
 </body>
 </html>
