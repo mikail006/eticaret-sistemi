@@ -22,6 +22,16 @@ if (!$product) {
     exit;
 }
 
+// Öğrenci bilgilerini al
+$stmt = $pdo->prepare("SELECT * FROM students WHERE id = ?");
+$stmt->execute([$_SESSION['student_id']]);
+$student = $stmt->fetch();
+
+// Sepet sayısı
+$cart_count_stmt = $pdo->prepare("SELECT COUNT(*) FROM cart WHERE student_id = ?");
+$cart_count_stmt->execute([$_SESSION['student_id']]);
+$cart_count = $cart_count_stmt->fetchColumn();
+
 $images = json_decode($product['images'], true) ?: [];
 ?>
 <!DOCTYPE html>
@@ -30,51 +40,62 @@ $images = json_decode($product['images'], true) ?: [];
     <title><?= htmlspecialchars($product['name']) ?> - Ürün Detayı</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f6fa; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f5f6fa; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3); display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 28px; }
-        .header-buttons { display: flex; gap: 15px; }
-        .btn { padding: 12px 24px; border: none; border-radius: 25px; text-decoration: none; font-weight: bold; transition: all 0.3s; cursor: pointer; display: inline-block; text-align: center; }
-        .btn-primary { background: rgba(255,255,255,0.9); color: #667eea; }
-        .btn-primary:hover { background: white; transform: translateY(-2px); }
-        .btn-secondary { background: rgba(255,255,255,0.2); color: white; }
-        .btn-secondary:hover { background: rgba(255,255,255,0.3); }
-        .btn-success { background: #48bb78; color: white; font-size: 18px; padding: 15px 30px; }
-        .btn-success:hover { background: #38a169; transform: translateY(-2px); }
-        .btn-disabled { background: #cbd5e0; color: #718096; cursor: not-allowed; font-size: 18px; padding: 15px 30px; }
+        /* HEADER */
+        .header { background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 15px; padding: 20px; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .header-container { display: flex; justify-content: space-between; align-items: center; }
         
-        .product-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .header-brand { display: flex; align-items: center; gap: 15px; color: #333; }
+        .profile-image { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #e9ecef; }
+        .profile-placeholder { width: 50px; height: 50px; border-radius: 50%; background: #e9ecef; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #666; }
+        .student-name { font-size: 24px; font-weight: 700; margin-bottom: 5px; }
+        .student-class { font-size: 16px; font-weight: 400; color: #666; }
         
-        .product-gallery { position: relative; }
-        .main-image { width: 100%; height: 400px; border-radius: 15px; object-fit: cover; margin-bottom: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .header-nav { display: flex; gap: 20px; align-items: center; }
+        .nav-link { color: #333; text-decoration: none; font-weight: 500; padding: 10px 16px; border-radius: 8px; }
+        .nav-link:hover { background: #e9ecef; }
+        .nav-link.active { background: #333; color: white; }
+        
+        /* ÜRÜN DETAY */
+        .product-detail { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+        
+        .product-gallery { }
+        .main-image { width: 100%; height: 400px; border-radius: 15px; object-fit: cover; margin-bottom: 20px; border: 2px solid #f0f0f0; }
         .thumbnail-container { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; }
-        .thumbnail { width: 80px; height: 80px; border-radius: 10px; object-fit: cover; cursor: pointer; border: 3px solid transparent; transition: all 0.3s; }
-        .thumbnail:hover, .thumbnail.active { border-color: #667eea; transform: scale(1.05); }
+        .thumbnail { width: 80px; height: 80px; border-radius: 10px; object-fit: cover; cursor: pointer; border: 2px solid #f0f0f0; }
+        .thumbnail:hover, .thumbnail.active { border-color: #333; }
         
-        .product-info h1 { font-size: 32px; color: #2d3748; margin-bottom: 15px; }
-        .product-price { font-size: 36px; font-weight: bold; color: #667eea; margin-bottom: 20px; }
-        .product-stock { font-size: 18px; margin-bottom: 20px; padding: 15px; border-radius: 10px; }
-        .stock-available { background: #f0fff4; color: #38a169; border: 2px solid #c6f6d5; }
-        .stock-low { background: #fffaf0; color: #dd6b20; border: 2px solid #fbd38d; }
-        .stock-out { background: #fed7d7; color: #e53e3e; border: 2px solid #feb2b2; }
+        .product-info { }
+        .product-title { font-size: 32px; font-weight: 700; color: #333; margin-bottom: 15px; }
+        .product-price { font-size: 36px; font-weight: 700; color: #000; margin-bottom: 20px; }
+        .product-stock { font-size: 18px; margin-bottom: 20px; padding: 15px; border-radius: 10px; border: 2px solid #e9ecef; background: #f8f9fa; font-weight: 600; }
+        .stock-available { color: #22c55e; }
+        .stock-low { color: #f59e0b; }
+        .stock-out { color: #ef4444; }
         
-        .product-description { background: #f7fafc; padding: 20px; border-radius: 10px; margin-bottom: 25px; }
-        .product-description h3 { margin-bottom: 10px; color: #2d3748; }
-        .product-description p { color: #718096; line-height: 1.6; }
+        .product-description { background: #f8f9fa; border: 2px solid #e9ecef; padding: 20px; border-radius: 10px; margin-bottom: 25px; }
+        .product-description h3 { margin-bottom: 10px; color: #333; font-weight: 700; }
+        .product-description p { color: #666; line-height: 1.6; font-weight: 500; }
         
         .purchase-section { display: flex; align-items: center; gap: 20px; margin-top: 30px; }
         .quantity-selector { display: flex; align-items: center; gap: 10px; }
-        .quantity-btn { width: 40px; height: 40px; border: 2px solid #e2e8f0; background: white; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; }
-        .quantity-btn:hover { border-color: #667eea; }
-        .quantity-input { width: 80px; height: 40px; text-align: center; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; }
+        .quantity-label { font-weight: 600; color: #333; }
+        .quantity-btn { width: 40px; height: 40px; border: 2px solid #e9ecef; background: white; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; color: #333; }
+        .quantity-btn:hover { border-color: #333; }
+        .quantity-input { width: 80px; height: 40px; text-align: center; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px; font-weight: 600; }
+        
+        .btn { padding: 15px 30px; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block; text-align: center; font-size: 16px; font-weight: 600; background: linear-gradient(135deg, #333 0%, #555 100%); color: white; }
+        .btn-disabled { background: #e9ecef; color: #666; cursor: not-allowed; }
         
         @media (max-width: 768px) {
             .container { padding: 10px; }
-            .header { flex-direction: column; gap: 15px; text-align: center; }
+            .header-container { flex-direction: column; gap: 15px; }
+            .header-nav { flex-wrap: wrap; justify-content: center; }
             .product-detail { grid-template-columns: 1fr; gap: 20px; }
             .purchase-section { flex-direction: column; align-items: stretch; }
             .main-image { height: 300px; }
@@ -84,10 +105,31 @@ $images = json_decode($product['images'], true) ?: [];
 <body>
     <div class="container">
         <div class="header">
-            <h1>📦 Ürün Detayı</h1>
-            <div class="header-buttons">
-                <a href="index.php" class="btn btn-secondary">Ana Sayfa</a>
-                <a href="cart.php" class="btn btn-primary">🛒 Sepetim</a>
+            <div class="header-container">
+                <div class="header-brand">
+                    <?php if ($student['profile_image']): ?>
+                        <img src="uploads/<?= htmlspecialchars($student['profile_image']) ?>" class="profile-image" alt="Profil">
+                    <?php else: ?>
+                        <div class="profile-placeholder">👤</div>
+                    <?php endif; ?>
+                    
+                    <div class="student-info">
+                        <div class="student-name"><?= htmlspecialchars($student['full_name']) ?></div>
+                        <div class="student-class"><?= htmlspecialchars($student['class']) ?></div>
+                    </div>
+                </div>
+                
+                <nav class="header-nav">
+                    <a href="index.php" class="nav-link">Anasayfa</a>
+                    <a href="profile.php" class="nav-link">Profil</a>
+                    <a href="cart.php" class="nav-link">
+                        Sepetim
+                        <?php if ($cart_count > 0): ?>
+                            (<?= $cart_count ?>)
+                        <?php endif; ?>
+                    </a>
+                    <a href="student_login.php" class="nav-link">Çıkış</a>
+                </nav>
             </div>
         </div>
         
@@ -109,8 +151,8 @@ $images = json_decode($product['images'], true) ?: [];
             </div>
             
             <div class="product-info">
-                <h1><?= htmlspecialchars($product['name']) ?></h1>
-                <div class="product-price"><?= number_format($product['price'], 2) ?> ₺</div>
+                <h1 class="product-title"><?= htmlspecialchars($product['name']) ?></h1>
+                <div class="product-price"><?= number_format($product['price'], 2) ?> TL</div>
                 
                 <div class="product-stock <?= $product['stock'] > 10 ? 'stock-available' : ($product['stock'] > 0 ? 'stock-low' : 'stock-out') ?>">
                     <?php if ($product['stock'] > 10): ?>
@@ -134,12 +176,12 @@ $images = json_decode($product['images'], true) ?: [];
                         <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
                         <div class="purchase-section">
                             <div class="quantity-selector">
-                                <span>Miktar:</span>
+                                <span class="quantity-label">Miktar:</span>
                                 <button type="button" class="quantity-btn" onclick="changeQuantity(-1)">-</button>
                                 <input type="number" name="quantity" id="quantity" value="1" min="1" max="<?= $product['stock'] ?>" class="quantity-input">
                                 <button type="button" class="quantity-btn" onclick="changeQuantity(1)">+</button>
                             </div>
-                            <button type="submit" class="btn btn-success">🛒 Sepete Ekle</button>
+                            <button type="submit" class="btn">Sepete Ekle</button>
                         </div>
                     </form>
                 <?php else: ?>

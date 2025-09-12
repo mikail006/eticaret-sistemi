@@ -23,35 +23,61 @@ if ($_POST && isset($_POST['login'])) {
 <html>
 <head>
     <title>Öğrenci Giriş</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .login-container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 400px; width: 90%; }
-        h2 { color: #333; text-align: center; margin-bottom: 30px; font-size: 28px; }
-        input { width: 100%; padding: 15px; margin: 15px 0; border: 2px solid #e1e8ed; border-radius: 10px; font-size: 16px; transition: all 0.3s; }
-        input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
-        button { background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 15px; border: none; border-radius: 10px; cursor: pointer; width: 100%; font-size: 18px; font-weight: bold; transition: all 0.3s; }
-        button:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4); }
-        .error { color: #e74c3c; margin: 15px 0; text-align: center; background: #ffeaea; padding: 10px; border-radius: 8px; }
-        .admin-link { text-align: center; margin-top: 25px; }
-        .admin-link a { color: #667eea; text-decoration: none; font-weight: 600; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f5f6fa; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        
+        .login-container { background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 15px; padding: 40px; max-width: 450px; width: 90%; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        
+        .login-header { text-align: center; margin-bottom: 30px; }
+        .login-header h1 { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 8px; }
+        .login-header p { color: #666; font-weight: 400; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+        .form-group input { width: 100%; padding: 15px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px; background: white; }
+        .form-group input:focus { outline: none; border-color: #333; }
+        
+        .error { background: #fef2f2; border: 2px solid #fecaca; color: #dc2626; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
+        
+        .login-btn { width: 100%; padding: 15px; border: none; border-radius: 8px; background: linear-gradient(135deg, #333 0%, #555 100%); color: white; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 20px; }
+        .login-btn:hover { background: linear-gradient(135deg, #555 0%, #777 100%); }
+        
+        .admin-link { text-align: center; padding-top: 20px; border-top: 2px solid #e9ecef; }
+        .admin-link a { color: #333; text-decoration: none; font-weight: 500; }
         .admin-link a:hover { text-decoration: underline; }
-        .info-box { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center; color: #666; }
+        
+        @media (max-width: 768px) {
+            .login-container { padding: 30px 20px; margin: 20px; }
+        }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <h2>Öğrenci Girişi</h2>
-        <div class="info-box">
-            Kullanıcı adı ve şifrenizi öğretmeninizden alabilirsiniz.
+        <div class="login-header">
+            <h1>Öğrenci Girişi</h1>
+            <p>Kullanıcı adı ve şifrenizi girin</p>
         </div>
         
-        <?php if (isset($error)) echo "<div class='error'>$error</div>"; ?>
+        <?php if (isset($error)): ?>
+            <div class="error"><?= htmlspecialchars($error) ?></div>
+        <?php endif; ?>
         
         <form method="POST">
-            <input type="text" name="username" placeholder="Kullanıcı Adı" required>
-            <input type="password" name="password" placeholder="Şifre" required>
-            <button type="submit" name="login">Giriş Yap</button>
+            <div class="form-group">
+                <label for="username">Kullanıcı Adı</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Şifre</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <button type="submit" name="login" class="login-btn">Giriş Yap</button>
         </form>
         
         <div class="admin-link">

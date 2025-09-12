@@ -16,6 +16,11 @@ $student_class = $student['class'];
 $stmt = $pdo->prepare("SELECT * FROM products WHERE JSON_CONTAINS(classes, ?) ORDER BY created_at DESC");
 $stmt->execute(['"' . $student_class . '"']);
 $products = $stmt->fetchAll();
+
+// Sepet sayısı
+$cart_count_stmt = $pdo->prepare("SELECT COUNT(*) FROM cart WHERE student_id = ?");
+$cart_count_stmt->execute([$_SESSION['student_id']]);
+$cart_count = $cart_count_stmt->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html>
@@ -23,62 +28,83 @@ $products = $stmt->fetchAll();
     <title>Ana Sayfa - E-Ticaret</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f6fa; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f5f6fa; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3); display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 28px; }
-        .header-info { text-align: right; }
-        .header-info p { margin-bottom: 5px; opacity: 0.9; }
-        .header-buttons { display: flex; gap: 15px; margin-top: 10px; }
-        .btn { padding: 12px 24px; border: none; border-radius: 25px; text-decoration: none; font-weight: bold; transition: all 0.3s; cursor: pointer; display: inline-block; text-align: center; }
-        .btn-primary { background: rgba(255,255,255,0.9); color: #667eea; }
-        .btn-primary:hover { background: white; transform: translateY(-2px); }
-        .btn-secondary { background: rgba(255,255,255,0.2); color: white; }
-        .btn-secondary:hover { background: rgba(255,255,255,0.3); }
-        .btn-success { background: #48bb78; color: white; }
-        .btn-success:hover { background: #38a169; transform: translateY(-2px); }
+        /* HEADER TASARIMI */
+        .header { background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 15px; padding: 20px; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .header-container { display: flex; justify-content: space-between; align-items: center; }
         
+        .header-brand { display: flex; align-items: center; gap: 15px; color: #333; }
+        .profile-image { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #e9ecef; }
+        .profile-placeholder { width: 50px; height: 50px; border-radius: 50%; background: #e9ecef; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #666; }
+        .student-info { }
+        .student-name { font-size: 24px; font-weight: 700; margin-bottom: 5px; }
+        .student-class { font-size: 16px; font-weight: 400; color: #666; }
+        
+        .header-nav { display: flex; gap: 20px; align-items: center; }
+        .nav-link { color: #333; text-decoration: none; font-weight: 500; padding: 10px 16px; border-radius: 8px; }
+        .nav-link:hover { background: #e9ecef; }
+        .nav-link.active { background: #333; color: white; }
+        
+        /* ÜRÜN GRID */
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; margin-top: 20px; }
-        .product-card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); transition: all 0.3s; }
-        .product-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
-        .product-image { height: 250px; overflow: hidden; }
-        .product-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
-        .product-card:hover .product-image img { transform: scale(1.05); }
-        .product-info { padding: 20px; }
-        .product-info h3 { font-size: 18px; margin-bottom: 10px; color: #2d3748; }
-        .product-price { font-size: 20px; font-weight: bold; color: #667eea; margin-bottom: 10px; }
-        .product-stock { font-size: 14px; color: #718096; margin-bottom: 15px; }
-        .product-actions { display: flex; gap: 10px; }
-        .product-actions .btn { flex: 1; padding: 10px; font-size: 14px; }
-        .product-actions form { flex: 1; }
-        .product-actions button { width: 100%; }
+        .product-card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
         
-        .welcome-section { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-bottom: 30px; text-align: center; }
-        .welcome-section h2 { color: #2d3748; margin-bottom: 10px; }
-        .welcome-section p { color: #718096; }
+        .product-image { height: 250px; overflow: hidden; }
+        .product-image img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .product-info { padding: 20px; text-align: center; }
+        .product-info h3 { font-size: 18px; font-weight: 600; margin-bottom: 10px; color: #333; }
+        .product-price { font-size: 20px; font-weight: 600; color: #000; margin-bottom: 20px; }
+        
+        .product-actions { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        .btn { padding: 12px 30px; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block; text-align: center; width: 180px; font-size: 14px; font-weight: 600; background: linear-gradient(135deg, #333 0%, #555 100%); color: white; }
+        .btn-disabled { background: #e9ecef; color: #666; cursor: not-allowed; font-weight: 400; }
+        
+        .welcome-section { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px; text-align: center; border: 1px solid #f0f0f0; }
+        .welcome-section h2 { color: #333; margin-bottom: 10px; font-weight: 600; }
+        .welcome-section p { color: #666; }
         
         @media (max-width: 768px) {
             .container { padding: 10px; }
-            .header { flex-direction: column; gap: 15px; text-align: center; }
+            .header-container { flex-direction: column; gap: 15px; }
+            .header-nav { flex-wrap: wrap; justify-content: center; }
             .products-grid { grid-template-columns: 1fr; }
-            .product-actions { flex-direction: column; }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🛍️ E-Ticaret Mağazası</h1>
-            <div class="header-info">
-                <p>Hoş geldin, <?= htmlspecialchars($student['full_name']) ?>!</p>
-                <p>Sınıf: <?= htmlspecialchars($student['class']) ?></p>
-                <div class="header-buttons">
-                    <a href="cart.php" class="btn btn-primary">🛒 Sepetim</a>
-                    <a href="student_login.php" class="btn btn-secondary">Çıkış</a>
+            <div class="header-container">
+                <div class="header-brand">
+                    <?php if ($student['profile_image']): ?>
+                        <img src="uploads/<?= htmlspecialchars($student['profile_image']) ?>" class="profile-image" alt="Profil">
+                    <?php else: ?>
+                        <div class="profile-placeholder">👤</div>
+                    <?php endif; ?>
+                    
+                    <div class="student-info">
+                        <div class="student-name"><?= htmlspecialchars($student['full_name']) ?></div>
+                        <div class="student-class"><?= htmlspecialchars($student['class']) ?></div>
+                    </div>
                 </div>
+                
+                <nav class="header-nav">
+                    <a href="index.php" class="nav-link active">Anasayfa</a>
+                    <a href="profile.php" class="nav-link">Profil</a>
+                    <a href="cart.php" class="nav-link">
+                        Sepetim
+                        <?php if ($cart_count > 0): ?>
+                            (<?= $cart_count ?>)
+                        <?php endif; ?>
+                    </a>
+                    <a href="student_login.php" class="nav-link">Çıkış</a>
+                </nav>
             </div>
         </div>
         
@@ -100,26 +126,18 @@ $products = $stmt->fetchAll();
                         </div>
                         <div class="product-info">
                             <h3><?= htmlspecialchars($product['name']) ?></h3>
-                            <div class="product-price"><?= number_format($product['price'], 2) ?> ₺</div>
-                            <div class="product-stock">
-                                <?php if ($product['stock'] > 10): ?>
-                                    <span style="color: #48bb78;">✅ Stokta var (<?= $product['stock'] ?>)</span>
-                                <?php elseif ($product['stock'] > 0): ?>
-                                    <span style="color: #ed8936;">⚠️ Son <?= $product['stock'] ?> adet</span>
-                                <?php else: ?>
-                                    <span style="color: #e53e3e;">❌ Stokta yok</span>
-                                <?php endif; ?>
-                            </div>
+                            <div class="product-price"><?= number_format($product['price'], 2) ?> TL</div>
+                            
                             <div class="product-actions">
-                                <a href="product_detail.php?id=<?= $product['id'] ?>" class="btn btn-primary">👁️ Detay</a>
+                                <a href="product_detail.php?id=<?= $product['id'] ?>" class="btn">Ürün Detay</a>
                                 <?php if ($product['stock'] > 0): ?>
                                     <form method="POST" action="add_to_cart.php">
                                         <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
                                         <input type="hidden" name="quantity" value="1">
-                                        <button type="submit" class="btn btn-success">🛒 Sepete Ekle</button>
+                                        <button type="submit" class="btn">Sepete Ekle</button>
                                     </form>
                                 <?php else: ?>
-                                    <button class="btn" style="background: #cbd5e0; color: #718096;" disabled>Stokta Yok</button>
+                                    <button class="btn btn-disabled" disabled>Stokta Yok</button>
                                 <?php endif; ?>
                             </div>
                         </div>
