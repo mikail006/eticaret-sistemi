@@ -10,15 +10,32 @@ if (!isset($_SESSION['admin_id'])) {
 $notification = '';
 $notification_type = '';
 if (isset($_GET['success'])) {
-    $notification = "Ürün başarılı bir şekilde eklendi";
+    $notification = "Ürün başarıyla sisteme kaydedildi ve satışa hazır hale getirildi";
     $notification_type = "success";
 } elseif (isset($_GET['error'])) {
-    $notification = "Ürün yükleme başarısız";
+    $notification = "Ürün kaydetme işlemi başarısız oldu, lütfen tekrar deneyiniz";
     $notification_type = "error";
 }
 
 // Sınıf listesi
 $classes = ['Anaokulu - Kreş', '1.sınıf', '2.sınıf', '3.sınıf', '4.sınıf', '5.sınıf', '6.sınıf', '7.sınıf', '8.sınıf', '9.sınıf', '10.sınıf', '11.sınıf', '12.sınıf'];
+
+// Kategoriler
+$categories = ['Giyim', 'Kırtasiye', 'Spor', 'Aksesuar'];
+
+// Hazır varyasyonlar
+$preset_variations = [
+    'renk' => ['Kırmızı', 'Mavi', 'Yeşil', 'Sarı', 'Siyah', 'Beyaz'],
+    'beden' => ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+    'numara' => ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45']
+];
+
+// Örnek veriler (gerçek veritabanından gelecek)
+$sample_students = [
+    ['name' => 'Ahmet Yılmaz', 'class' => '5.sınıf', 'photo' => 'default.jpg'],
+    ['name' => 'Ayşe Kaya', 'class' => '6.sınıf', 'photo' => 'default.jpg'],
+    ['name' => 'Mehmet Özkan', 'class' => '7.sınıf', 'photo' => 'default.jpg'],
+];
 
 // Ürün ekleme
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
@@ -26,35 +43,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
         $name = $_POST['name'];
         $description = $_POST['description'];
         $price = $_POST['price'];
-        $stock = $_POST['stock'];
+        $product_code = $_POST['product_code'];
+        $barcode = $_POST['barcode'];
+        $category = $_POST['category'];
         $target_classes = isset($_POST['target_classes']) ? $_POST['target_classes'] : [];
+        
+        // Validation
+        if (empty($name) || empty($description) || empty($price)) {
+            $notification = "Zorunlu alanlar boş bırakılamaz, lütfen tüm alanları doldurunuz";
+            $notification_type = "warning";
+        } else {
+            // Varyasyonları JSON olarak kaydet
+            $variations = [];
+            if (isset($_POST['variations'])) {
+                $variations = $_POST['variations'];
+            }
 
-        $images = [];
-        if (isset($_FILES['images']) && $_FILES['images']['error'][0] !== UPLOAD_ERR_NO_FILE) {
-            foreach ($_FILES['images']['tmp_name'] as $key => $tmp_name) {
-                if (!empty($tmp_name) && $_FILES['images']['error'][$key] === 0) {
-                    $file_name = time() . '_' . uniqid() . '_' . $_FILES['images']['name'][$key];
-                    $upload_path = 'uploads/' . $file_name;
+            $images = [];
+            if (isset($_FILES['images']) && $_FILES['images']['error'][0] !== UPLOAD_ERR_NO_FILE) {
+                foreach ($_FILES['images']['tmp_name'] as $key => $tmp_name) {
+                    if (!empty($tmp_name) && $_FILES['images']['error'][$key] === 0) {
+                        $file_name = time() . '_' . uniqid() . '_' . $_FILES['images']['name'][$key];
+                        $upload_path = 'uploads/' . $file_name;
 
-                    if (!file_exists('uploads')) {
-                        mkdir('uploads', 0777, true);
-                    }
+                        if (!file_exists('uploads')) {
+                            mkdir('uploads', 0777, true);
+                        }
 
-                    if (move_uploaded_file($tmp_name, $upload_path)) {
-                        $images[] = $file_name;
+                        if (move_uploaded_file($tmp_name, $upload_path)) {
+                            $images[] = $file_name;
+                        }
                     }
                 }
             }
+
+            $images_json = json_encode($images);
+            $target_classes_json = json_encode($target_classes);
+            $variations_json = json_encode($variations);
+
+            // Stok yerine varyasyon sistemi kullandığımız için stock=1 default
+            $stmt = $pdo->prepare("INSERT INTO products (name, description, price, stock, images, classes, product_code, barcode, category) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)");
+            $stmt->execute([$name, $description, $price, $images_json, $target_classes_json, $product_code, $barcode, $category]);
+
+            header("Location: add_product.php?success=1");
+            exit;
         }
-
-        $images_json = json_encode($images);
-        $target_classes_json = json_encode($target_classes);
-
-        $stmt = $pdo->prepare("INSERT INTO products (name, description, price, stock, images, classes) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$name, $description, $price, $stock, $images_json, $target_classes_json]);
-
-        header("Location: add_product.php?success=1");
-        exit;
 
     } catch (Exception $e) {
         header("Location: add_product.php?error=1");
@@ -67,271 +100,1821 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
 <head>
     <title>Yeni Ürün Ekle</title>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f6fa; }
-        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
-
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3); display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 28px; }
-        .btn-back { background: rgba(255,255,255,0.2); color: white; padding: 10px 20px; border: none; border-radius: 25px; text-decoration: none; transition: all 0.3s; }
-        .btn-back:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
-
-        .form-section { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-        .form-full { grid-column: 1 / -1; }
-
-        input, textarea, select { width: 100%; padding: 15px; border: 2px solid #e1e8ed; border-radius: 10px; font-size: 16px; transition: all 0.3s; }
-        input:focus, textarea:focus, select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
-
-        .class-selection { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; padding: 20px; background: #f8f9fa; border-radius: 10px; }
-        .class-checkbox { display: flex; align-items: center; gap: 8px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.3s; background: white; }
-        .class-checkbox:hover { border-color: #667eea; background: #f0f4ff; }
-        .class-checkbox input[type="checkbox"]:checked { accent-color: #667eea; }
-        .class-checkbox input[type="checkbox"]:checked + span { color: #667eea; font-weight: 600; }
-
-        .upload-container { margin: 30px 0; }
-        .drop-zone { border: 3px dashed #cbd5e0; background: #f7fafc; padding: 60px 20px; text-align: center; border-radius: 15px; transition: all 0.3s; cursor: pointer; }
-        .drop-zone:hover, .drop-zone.dragover { border-color: #667eea; background: #edf2f7; transform: scale(1.02); }
-        .drop-zone.dragover { border-color: #4299e1; background: #ebf8ff; }
-
-        .upload-icon { font-size: 48px; color: #a0aec0; margin-bottom: 20px; }
-        .upload-text { font-size: 18px; color: #4a5568; margin-bottom: 10px; }
-        .upload-hint { color: #718096; font-size: 14px; }
-
-        .file-input { display: none; }
-
-        .preview-container { margin-top: 30px; }
-        .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, 100px); gap: 10px; justify-content: start; }
-        .preview-item { position: relative; width: 100px; height: 100px; border-radius: 8px; overflow: hidden; cursor: move; transition: opacity 0.3s ease; }
-        .preview-item:hover { transform: scale(1.05); }
-        .preview-item.removing { opacity: 0; transform: scale(0.8); transition: all 0.3s ease; }
-
-        .highlight { border: 3px solid #667eea; background: rgba(102, 126, 234, 0.1); transform: scale(1.05); }
-
-        .preview-image { width: 100%; height: 100%; object-fit: cover; }
-        .preview-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
-        .preview-item:hover .preview-overlay { opacity: 1; }
-
-        .preview-btn { background: white; border: none; padding: 6px; border-radius: 50%; cursor: pointer; font-size: 12px; }
-        .preview-btn:hover { transform: scale(1.1); }
-        .delete-btn { color: #e53e3e; }
-        .move-btn { color: #4299e1; cursor: grab; }
-        .move-btn:active { cursor: grabbing; }
-
-        .submit-btn { background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 18px 40px; border: none; border-radius: 25px; font-size: 18px; cursor: pointer; transition: all 0.3s; margin-top: 30px; }
-        .submit-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4); }
-
-        .notification { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); padding: 20px 30px; border-radius: 10px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.5s ease; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        .notification.success { background: linear-gradient(45deg, #48bb78, #38a169); }
-        .notification.error { background: linear-gradient(45deg, #e53e3e, #c53030); }
-        .notification.show { bottom: 100px; }
-
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: #F3F3F5; 
+            color: #050E1A;
+            display: flex;
+        }
+        
+        /* SIDEBAR - DÜZENLENDİ */
+        .sidebar {
+            width: 300px;
+            background: white;
+            height: 100vh;
+            position: fixed;
+            left: 15px;
+            top: 0;
+            padding: 24px 0;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            overflow-y: auto;
+        }
+        
+        /* LOGO */
+        .logo {
+            padding: 0 24px;
+            margin-bottom: 20px;
+        }
+        
+        .logo h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #050E1A;
+            margin-bottom: 16px;
+        }
+        
+        /* SEARCH - İYİLEŞTİRİLDİ */
+        .search-container {
+            padding: 0 24px;
+            margin-bottom: 32px;
+            position: relative;
+        }
+        
+        .search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 38px;
+            background: #FAFAFB;
+            border: 2px solid #ECEDEE;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #050E1A;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #050E1A;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            width: 18px;
+            height: 18px;
+            color: #666;
+        }
+        
+        .search-hotkey {
+            position: absolute;
+            right: 12px;
+            background: #ECEDEE;
+            color: #666;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        /* SEARCH POPUP */
+        .search-popup {
+            position: absolute;
+            top: calc(100% + 10px);
+            left: 24px;
+            right: 24px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            z-index: 1000;
+            max-height: 500px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .search-results {
+            padding: 20px;
+        }
+        
+        .search-category {
+            margin-bottom: 24px;
+        }
+        
+        .search-category-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+        
+        .search-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 8px;
+        }
+        
+        .search-item:hover {
+            background: #F8F9FA;
+        }
+        
+        .student-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ECEDEE;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .search-item-info h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        
+        .search-item-info p {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* NAVIGATION */
+        .nav-section {
+            margin-bottom: 28px;
+        }
+        
+        .nav-title {
+            padding: 0 24px;
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        
+        .nav-menu {
+            list-style: none;
+        }
+        
+        .nav-item {
+            margin-bottom: 4px;
+            position: relative;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            color: #050E1A;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 16px;
+            transition: none;
+        }
+        
+        .nav-link.active {
+            font-weight: 700;
+        }
+        
+        .nav-link svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        /* SUBMENU */
+        .nav-item.has-submenu > .nav-link {
+            cursor: pointer;
+        }
+        
+        .submenu {
+            display: none;
+            position: relative;
+        }
+        
+        .nav-item.has-submenu.open .submenu {
+            display: block;
+        }
+        
+        /* SUBMENU ÇIZGISI */
+        .nav-item.has-submenu.open::before {
+            content: '';
+            position: absolute;
+            left: 34px;
+            top: 48px;
+            bottom: 0;
+            width: 2px;
+            background: #ECEDEE;
+            z-index: 1;
+        }
+        
+        .submenu-item {
+            margin-bottom: 2px;
+            position: relative;
+        }
+        
+        .submenu-link {
+            display: block;
+            padding: 10px 16px;
+            color: #666;
+            text-decoration: none;
+            font-size: 16px;
+            transition: none;
+            margin-left: 46px;
+        }
+        
+        .submenu-link.active {
+            font-weight: 700;
+            color: #050E1A;
+        }
+        
+        /* AKTİF SUBMENU ÇIZGISI */
+        .submenu-item.active::before {
+            content: '';
+            position: absolute;
+            left: 34px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #050E1A;
+            z-index: 2;
+        }
+        
+        /* USER PROFILE */
+        .user-profile {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            right: 24px;
+            border-top: 1px solid #ECEDEE;
+            padding-top: 20px;
+        }
+        
+        .user-card {
+            background: #FAFAFB;
+            border: 1px solid #ECEDEE;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .user-card:hover {
+            background: #F0F0F0;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #CCCCCC;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        
+        .user-details h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: #050E1A;
+            margin-bottom: 1px;
+        }
+        
+        .user-details span {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        /* MAIN CONTENT - %15 GENİŞLETİLDİ */
+        .main-content {
+            margin-left: 325px;
+            flex: 1;
+            padding: 40px;
+            max-width: calc(100vw - 325px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        
+        .header-container {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            margin-bottom: 30px;
+            width: 100%;
+            max-width: 1075px;
+        }
+        
+        .page-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #050E1A;
+        }
+        
+        /* NAVIGATION BUTTON - SAĞ ALT */
+        .nav-button {
+            position: fixed;
+            bottom: 50px;
+            right: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px 32px;
+            border: none;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+            z-index: 100;
+            transition: all 0.3s;
+        }
+        
+        .nav-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* NAVIGATION POPUP */
+        .nav-popup {
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            z-index: 1001;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            min-width: 300px;
+        }
+        
+        .nav-popup.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .nav-popup-content {
+            padding: 24px;
+        }
+        
+        .nav-popup-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .nav-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 8px;
+        }
+        
+        .nav-option:hover {
+            background: #F8F9FA;
+        }
+        
+        .nav-option-icon {
+            width: 40px;
+            height: 40px;
+            background: #F0F0F0;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .nav-option-text {
+            font-weight: 600;
+        }
+        
+        /* FORM CONTAINER - %15 GENİŞLETİLDİ */
+        .form-container {
+            max-width: 1075px;
+            width: 100%;
+        }
+        
+        /* FORM */
+        .product-form {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .form-full {
+            grid-column: 1 / -1;
+            margin-bottom: 24px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-label {
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: #050E1A;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .required {
+            color: #ff6b6b;
+            font-size: 16px;
+        }
+        
+        .add-link {
+            color: #050E1A;
+            text-decoration: underline;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: auto;
+        }
+        
+        .add-link:hover {
+            color: #1a2332;
+        }
+        
+        .form-input {
+            padding: 16px;
+            background: #FAFAFB;
+            border: 2px solid #ECEDEE;
+            border-radius: 12px;
+            font-size: 16px;
+            color: #050E1A;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #050E1A;
+        }
+        
+        /* CATEGORY DROPDOWN */
+        .category-container {
+            position: relative;
+        }
+        
+        .category-dropdown {
+            width: 100%;
+            padding: 16px;
+            background: #FAFAFB;
+            border: 2px solid #ECEDEE;
+            border-radius: 12px;
+            font-size: 16px;
+            color: #050E1A;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            appearance: none;
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+        }
+        
+        .category-dropdown:focus {
+            outline: none;
+            border-color: #050E1A;
+        }
+        
+        /* TEXTAREA - KARAKTER SAYACI */
+        .textarea-container {
+            position: relative;
+        }
+        
+        .form-input[name="description"] {
+            resize: vertical;
+            min-height: 120px;
+            max-width: 100%;
+        }
+        
+        .char-counter {
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            font-size: 12px;
+            color: #666;
+            background: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        /* FİYAT ALANI */
+        .price-container {
+            position: relative;
+        }
+        
+        .currency-flag {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid #ECEDEE;
+        }
+        
+        .flag-img {
+            width: 20px;
+            height: 15px;
+            object-fit: cover;
+            border-radius: 2px;
+        }
+        
+        .currency-text {
+            font-size: 14px;
+            font-weight: 600;
+            color: #050E1A;
+        }
+        
+        /* SAYI INPUT */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        
+        /* CLASS SELECTION */
+        .class-selection {
+            margin-top: 12px;
+        }
+        
+        .selected-classes {
+            margin-top: 16px;
+        }
+        
+        .classes-title {
+            font-weight: 700;
+            color: #050E1A;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .class-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .class-tag {
+            background: #F0F0F0;
+            border: 1px solid #ECEDEE;
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .remove-tag {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* POPUPS */
+        .class-popup, .variation-popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .popup-content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+        
+        .popup-title {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        
+        .close-popup {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .class-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        
+        .class-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: #FAFAFB;
+            border: 2px solid #ECEDEE;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .class-checkbox:hover {
+            border-color: #050E1A;
+        }
+        
+        .class-checkbox:hover span {
+            font-weight: 600;
+        }
+        
+        .class-checkbox.selected {
+            background: #050E1A;
+            color: white;
+            border-color: #050E1A;
+        }
+        
+        .checkbox-custom {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ECEDEE;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+        }
+        
+        .class-checkbox.selected .checkbox-custom {
+            background: white;
+            border-color: white;
+        }
+        
+        .checkbox-custom svg {
+            width: 14px;
+            height: 14px;
+            display: none;
+        }
+        
+        .class-checkbox.selected .checkbox-custom svg {
+            display: block;
+        }
+        
+        .class-checkbox input[type="checkbox"] {
+            display: none;
+        }
+        
+        /* VARIATION SYSTEM */
+        .variation-section {
+            margin-bottom: 24px;
+        }
+        
+        .variation-button {
+            background: #050E1A;
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin-top: 12px;
+        }
+        
+        .variation-button:hover {
+            background: #1a2332;
+        }
+        
+        .selected-variations {
+            margin-top: 16px;
+        }
+        
+        .variations-title {
+            font-weight: 700;
+            color: #050E1A;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .variation-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .variation-tag-display {
+            background: #F0F0F0;
+            border: 1px solid #ECEDEE;
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .variation-type {
+            margin-bottom: 32px;
+        }
+        
+        .variation-type-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .add-custom-variation {
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .variation-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .variation-tag {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #FAFAFB;
+            border: 2px solid #ECEDEE;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .variation-tag.selected {
+            background: #050E1A;
+            color: white;
+            border-color: #050E1A;
+        }
+        
+        .add-custom-input {
+            padding: 8px 12px;
+            background: #FAFAFB;
+            border: 2px solid #ECEDEE;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-right: 8px;
+        }
+        
+        .add-custom-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        /* UPLOAD AREA */
+        .upload-container {
+            margin-bottom: 24px;
+        }
+        
+        .drop-zone {
+            border: 3px dashed #ECEDEE;
+            background: #FAFAFB;
+            padding: 60px 20px;
+            text-align: center;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 12px;
+        }
+        
+        .drop-zone:hover {
+            border-color: #050E1A;
+        }
+        
+        .upload-icon {
+            margin-bottom: 16px;
+            color: #666;
+        }
+        
+        .upload-icon svg {
+            width: 48px;
+            height: 48px;
+        }
+        
+        .upload-text {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #050E1A;
+        }
+        
+        .upload-hint {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        /* PREVIEW - YENİ ÖZELLİKLER */
+        .preview-container {
+            margin-top: 24px;
+            display: none;
+        }
+        
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 120px);
+            gap: 12px;
+        }
+        
+        .preview-item {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: move;
+        }
+        
+        .preview-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .preview-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            opacity: 0;
+            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .preview-item:hover .preview-overlay {
+            opacity: 1;
+        }
+        
+        .delete-preview {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-image-indicator {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            width: 12px;
+            height: 12px;
+            background: #ff4444;
+            border-radius: 50%;
+            border: 2px solid white;
+            z-index: 10;
+        }
+        
+        .preview-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+        
+        /* SUBMIT BUTTON */
+        .submit-btn {
+            background: #050E1A;
+            color: white;
+            padding: 18px 40px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Plus Jakarta Plus', sans-serif;
+            width: 100%;
+            margin-top: 32px;
+        }
+        
+        .submit-btn:hover {
+            background: #1a2332;
+        }
+        
+        /* NOTIFICATION ALERT */
+        .notification-alert {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: white;
+            border-radius: 50px;
+            padding: 16px 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10000;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .notification-alert.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .notification-icon {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .notification-icon.success {
+            background: #22c55e;
+            color: white;
+        }
+        
+        .notification-icon.error {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .notification-icon.warning {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .notification-icon svg {
+            width: 14px;
+            height: 14px;
+        }
+        
+        /* MOBILE */
         @media (max-width: 768px) {
-            .form-row { grid-template-columns: 1fr; }
-            .preview-grid { grid-template-columns: repeat(auto-fill, 80px); }
-            .container { padding: 10px; }
-            .header { flex-direction: column; gap: 15px; text-align: center; }
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+                z-index: 1000;
+                left: 0;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+            
+            .mobile-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: white;
+                padding: 16px 20px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                margin-bottom: 20px;
+            }
+            
+            .menu-toggle {
+                background: none;
+                border: none;
+                font-size: 24px;
+                cursor: pointer;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-container {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+            
+            .nav-button {
+                bottom: 20px;
+                right: 20px;
+                padding: 14px 24px;
+                font-size: 14px;
+            }
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-header {
+                display: none;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Yeni Ürün Ekle</h1>
-            <a href="admin_panel.php" class="btn-back">← Geri Dön</a>
+    <!-- MOBILE HEADER -->
+    <div class="mobile-header">
+        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+        <h2>Gebze Hisar Store</h2>
+        <div></div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+        <!-- LOGO -->
+        <div class="logo">
+            <h1>Gebze Hisar Store</h1>
         </div>
-
-        <div class="form-section">
-            <form method="POST" enctype="multipart/form-data" id="productForm">
-                <div class="form-row">
-                    <input type="text" name="name" placeholder="Ürün Adı" required>
-                    <input type="number" step="0.01" name="price" placeholder="Fiyat (TL)" required>
-                </div>
-
-                <div class="form-row">
-                    <input type="number" name="stock" placeholder="Stok Adedi" required>
-                    <div></div>
-                </div>
-
-                <div class="form-full">
-                    <textarea name="description" placeholder="Ürün Açıklaması" rows="4" required></textarea>
-                </div>
-
-                <!-- Sınıf seçimi -->
-                <div class="form-full">
-                    <h3 style="margin-bottom: 15px; color: #4a5568;">Bu ürün hangi sınıflara gösterilsin?</h3>
-                    <div class="class-selection">
-                        <?php foreach ($classes as $class): ?>
-                            <label class="class-checkbox">
-                                <input type="checkbox" name="target_classes[]" value="<?= $class ?>">
-                                <span><?= $class ?></span>
-                            </label>
-                        <?php endforeach; ?>
+        
+        <!-- SEARCH -->
+        <div class="search-container">
+            <div class="search-box">
+                <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 20L15.8033 15.8033M15.8033 15.8033C17.1605 14.4461 18 12.5711 18 10.5C18 6.35786 14.6421 3 10.5 3C6.35786 3 3 6.35786 3 10.5C3 14.6421 6.35786 18 10.5 18C12.5711 18 14.4461 17.1605 15.8033 15.8033Z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <input type="text" class="search-input" placeholder="Ne Aramıştınız?" id="searchInput" onfocus="showSearchPopup()" onblur="hideSearchPopup()" oninput="filterSearch()">
+                <div class="search-hotkey">CTRL + A</div>
+            </div>
+            
+            <!-- SEARCH POPUP -->
+            <div class="search-popup" id="searchPopup">
+                <div class="search-results">
+                    <div class="search-category">
+                        <div class="search-category-title">Öğrenciler</div>
+                        <div id="studentResults">
+                            <?php foreach ($sample_students as $student): ?>
+                                <div class="search-item student-item" onclick="goToStudent('<?= $student['name'] ?>')">
+                                    <div class="student-avatar"><?= substr($student['name'], 0, 1) ?></div>
+                                    <div class="search-item-info">
+                                        <h4><?= $student['name'] ?></h4>
+                                        <p><?= $student['class'] ?></p>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
-                    <small style="color: #718096; margin-top: 10px; display: block;">En az bir sınıf seçmelisiniz</small>
-                </div>
-
-                <div class="upload-container">
-                    <div class="drop-zone" id="dropZone">
-                        <div class="upload-icon">📁</div>
-                        <div class="upload-text">Resimleri buraya sürükleyin veya tıklayın</div>
-                        <div class="upload-hint">PNG, JPG, GIF formatları desteklenir • İlk resim ana resim olacak</div>
-                        <input type="file" id="fileInput" name="images[]" multiple accept="image/*" class="file-input">
+                    
+                    <div class="search-category">
+                        <div class="search-category-title">Ürünler</div>
+                        <div class="search-item" onclick="goToProducts()">
+                            <div class="student-avatar">Ü</div>
+                            <div class="search-item-info">
+                                <h4>Tüm Ürünler</h4>
+                                <p>Ürün listesini görüntüle</p>
+                            </div>
+                        </div>
                     </div>
-
-                    <div class="preview-container" id="previewContainer" style="display: none;">
-                        <h3 style="margin-bottom: 20px; color: #4a5568;">Yüklenen Resimler (Bire bir yer değiştirme)</h3>
-                        <div class="preview-grid" id="previewGrid"></div>
+                    
+                    <div class="search-category">
+                        <div class="search-category-title">Siparişler</div>
+                        <div class="search-item" onclick="goToOrders()">
+                            <div class="student-avatar">S</div>
+                            <div class="search-item-info">
+                                <h4>Tüm Siparişler</h4>
+                                <p>Sipariş listesini görüntüle</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <button type="submit" name="add_product" class="submit-btn" id="submitBtn">
-                    Ürün Ekle
-                </button>
-            </form>
+            </div>
+        </div>
+        
+        <!-- NAVIGATION -->
+        <div class="nav-section">
+            <div class="nav-title">GENEL</div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="index.php" class="nav-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3.5 3.5H10.5V10.5H3.5V3.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M3.5 13.5H10.5V20.5H3.5V13.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M13.5 3.5H20.5V10.5H13.5V3.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M13.5 13.5H20.5V20.5H13.5V13.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Pano
+                    </a>
+                </li>
+                
+                <li class="nav-item has-submenu" onclick="toggleSubmenu(this)">
+                    <a href="#" class="nav-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 11C15 12.6569 13.6569 14 12 14C10.3431 14 9 12.6569 9 11M20 7L18 3H6L4 7M20 7H4M20 7V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Sipariş
+                    </a>
+                    <ul class="submenu">
+                        <li class="submenu-item"><a href="admin_orders.php" class="submenu-link">Tüm Siparişler</a></li>
+                        <li class="submenu-item"><a href="#" class="submenu-link">Bekleyenler</a></li>
+                        <li class="submenu-item"><a href="#" class="submenu-link">Hazırlananlar</a></li>
+                        <li class="submenu-item"><a href="#" class="submenu-link">Kargodakiler</a></li>
+                    </ul>
+                </li>
+                
+                <li class="nav-item has-submenu open" onclick="toggleSubmenu(this)">
+                    <a href="#" class="nav-link active">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 11C15 12.6569 13.6569 14 12 14C10.3431 14 9 12.6569 9 11M20 7L18 3H6L4 7M20 7H4M20 7V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Ürün
+                    </a>
+                    <ul class="submenu">
+                        <li class="submenu-item active"><a href="add_product.php" class="submenu-link active">Yeni Ürün</a></li>
+                        <li class="submenu-item"><a href="#" class="submenu-link">Giyim</a></li>
+                        <li class="submenu-item"><a href="#" class="submenu-link">Aksesuar</a></li>
+                        <li class="submenu-item"><a href="#" class="submenu-link">Kırtasiye</a></li>
+                    </ul>
+                </li>
+                
+                <li class="nav-item">
+                    <a href="student_management.php" class="nav-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16 15H8C5.79086 15 4 16.7909 4 19V21H20V19C20 16.7909 18.2091 15 16 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Öğrenci
+                    </a>
+                </li>
+            </ul>
+        </div>
+        
+        <!-- AYARLAR SEKSİYONU -->
+        <div class="nav-section">
+            <div class="nav-title">AYARLAR</div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 9V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V9M21 9V17C21 18.1046 20.1046 19 19 19H5C3.89543 19 3 18.1046 3 17V9M21 9H3M6 16H10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        POS
+                    </a>
+                </li>
+                
+                <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M7 21V16H4V4H20V16H12L7 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        SMS
+                    </a>
+                </li>
+                
+                <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M11 3H13C13.5523 3 14 3.44772 14 4V4.56879C14 4.99659 14.2871 5.36825 14.6822 5.53228C15.0775 5.69638 15.5377 5.63384 15.8403 5.33123L16.2426 4.92891C16.6331 4.53838 17.2663 4.53838 17.6568 4.92891L19.071 6.34312C19.4616 6.73365 19.4615 7.36681 19.071 7.75734L18.6688 8.1596C18.3661 8.46223 18.3036 8.92247 18.4677 9.31774C18.6317 9.71287 19.0034 10 19.4313 10L20 10C20.5523 10 21 10.4477 21 11V13C21 13.5523 20.5523 14 20 14H19.4312C19.0034 14 18.6318 14.2871 18.4677 14.6822C18.3036 15.0775 18.3661 15.5377 18.6688 15.8403L19.071 16.2426C19.4616 16.6331 19.4616 17.2663 19.071 17.6568L17.6568 19.071C17.2663 19.4616 16.6331 19.4616 16.2426 19.071L15.8403 18.6688C15.5377 18.3661 15.0775 18.3036 14.6822 18.4677C14.2871 18.6318 14 19.0034 14 19.4312V20C14 20.5523 13.5523 21 13 21H11C10.4477 21 10 20.5523 10 20V19.4313C10 19.0034 9.71287 18.6317 9.31774 18.4677C8.92247 18.3036 8.46223 18.3661 8.1596 18.6688L7.75732 19.071C7.36679 19.4616 6.73363 19.4616 6.34311 19.071L4.92889 17.6568C4.53837 17.2663 4.53837 16.6331 4.92889 16.2426L5.33123 15.8403C5.63384 15.5377 5.69638 15.0775 5.53228 14.6822C5.36825 14.2871 4.99659 14 4.56879 14H4C3.44772 14 3 13.5523 3 13V11C3 10.4477 3.44772 10 4 10L4.56877 10C4.99658 10 5.36825 9.71288 5.53229 9.31776C5.6964 8.9225 5.63386 8.46229 5.33123 8.15966L4.92891 7.75734C4.53838 7.36681 4.53838 6.73365 4.92891 6.34313L6.34312 4.92891C6.73365 4.53839 7.36681 4.53839 7.75734 4.92891L8.15966 5.33123C8.46228 5.63386 8.9225 5.6964 9.31776 5.53229C9.71288 5.36825 10 4.99658 10 4.56876V4C10 3.44772 10.4477 3 11 3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M14 12C14 13.1046 13.1046 14 12 14C10.8954 14 10 13.1046 10 12C10 10.8954 10.8954 10 12 10C13.1046 10 14 10.8954 14 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Yardım Merkezi
+                    </a>
+                </li>
+            </ul>
+        </div>
+        
+        <!-- USER PROFILE -->
+        <div class="user-profile">
+            <div class="user-card" onclick="window.location.href='/admin'">
+                <div class="user-info">
+                    <div class="user-avatar">A</div>
+                    <div class="user-details">
+                        <h3>Yönetici</h3>
+                        <span>Admin</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/plugins/Swap/Sortable.swap.min.js"></script>
+    <!-- NAVIGATION BUTTON -->
+    <button class="nav-button" onclick="toggleNavPopup()">Navigasyon</button>
+    
+    <!-- NAVIGATION POPUP -->
+    <div class="nav-popup" id="navPopup">
+        <div class="nav-popup-content">
+            <div class="nav-popup-title">Hızlı Erişim</div>
+            <div class="nav-option" onclick="goToOrders()">
+                <div class="nav-option-icon">📋</div>
+                <div class="nav-option-text">Sipariş Ara</div>
+            </div>
+            <div class="nav-option" onclick="goToStudents()">
+                <div class="nav-option-icon">👤</div>
+                <div class="nav-option-text">Öğrenci Ekle</div>
+            </div>
+            <div class="nav-option" onclick="goToProducts()">
+                <div class="nav-option-icon">📦</div>
+                <div class="nav-option-text">Ürün Ekle</div>
+            </div>
+        </div>
+    </div>
 
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        <div class="header-container">
+            <h1 class="page-title">Yeni Ürün Ekle</h1>
+        </div>
+        
+        <div class="form-container">
+            <form method="POST" enctype="multipart/form-data" class="product-form" id="productForm">
+                <!-- ÜRÜN BİLGİLERİ -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Ürün Adı <span class="required">*</span></label>
+                        <input type="text" name="name" class="form-input" placeholder="Ürün adını girin" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ürün Kodu</label>
+                        <input type="text" name="product_code" class="form-input" placeholder="Örn: GHS001">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Fiyat <span class="required">*</span></label>
+                        <div class="price-container">
+                            <input type="number" step="0.01" name="price" class="form-input" placeholder="0.00" required>
+                            <div class="currency-flag">
+                                <img src="https://cdn-icons-png.flaticon.com/128/9906/9906530.png" alt="TR" class="flag-img">
+                                <span class="currency-text">TL</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Kategori</label>
+                        <div class="category-container">
+                            <select name="category" class="category-dropdown">
+                                <option value="">Kategori Seçin</option>
+                                <?php foreach ($categories as $category): ?>
+                                    <option value="<?= $category ?>"><?= $category ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Barkod Numarası</label>
+                        <input type="text" name="barcode" class="form-input" placeholder="Barkod numarasını girin">
+                    </div>
+                    <div></div>
+                </div>
+                
+                <div class="form-full">
+                    <div class="form-group">
+                        <label class="form-label">Ürün Açıklaması <span class="required">*</span></label>
+                        <div class="textarea-container">
+                            <textarea name="description" class="form-input" rows="4" placeholder="Ürün açıklamasını yazın" maxlength="1000" required oninput="updateCharCounter(this)"></textarea>
+                            <div class="char-counter">
+                                <span id="charCount">0</span>/1000
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SINIF SEÇİMİ -->
+                <div class="form-full">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Hedef Sınıflar <span class="required">*</span>
+                            <span class="add-link" onclick="openClassPopup()">Sınıf Ekle</span>
+                        </label>
+                        <div class="class-selection">
+                            <div id="selectedClasses" class="selected-classes" style="display: none;">
+                                <div class="classes-title">Sınıflar:</div>
+                                <div class="class-tags" id="classTags"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- VARYASYON SEKSİYONU -->
+                <div class="form-full">
+                    <div class="variation-section">
+                        <div class="form-group">
+                            <label class="form-label">Ürün Varyasyonları</label>
+                            <button type="button" class="variation-button" onclick="openVariationPopup()">Varyasyon Ekle</button>
+                            <div id="selectedVariations" class="selected-variations" style="display: none;">
+                                <div class="variations-title">Varyasyonlar:</div>
+                                <div class="variation-tags" id="variationTags"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- RESİM YÜKLEME -->
+                <div class="upload-container">
+                    <div class="form-group">
+                        <label class="form-label">Ürün Resimleri</label>
+                        <div class="drop-zone" id="dropZone">
+                            <div class="upload-icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M4.02693 18.329C4.18385 19.277 5.0075 20 6 20H18C19.1046 20 20 19.1046 20 18V14.1901M4.02693 18.329C4.00922 18.222 4 18.1121 4 18V6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V14.1901M4.02693 18.329L7.84762 14.5083C8.52765 13.9133 9.52219 13.8482 10.274 14.3494L10.7832 14.6888C11.5078 15.1719 12.4619 15.1305 13.142 14.5865L15.7901 12.4679C16.4651 11.9279 17.4053 11.8856 18.1228 12.3484C18.2023 12.3997 18.2731 12.4632 18.34 12.5302L20 14.1901M11 9C11 10.1046 10.1046 11 9 11C7.89543 11 7 10.1046 7 9C7 7.89543 7.89543 7 9 7C10.1046 7 11 7.89543 11 9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <div class="upload-text">Resimleri buraya sürükleyin veya tıklayın</div>
+                            <div class="upload-hint">PNG, JPG, GIF formatları desteklenir</div>
+                            <input type="file" id="fileInput" name="images[]" multiple accept="image/*" class="file-input">
+                        </div>
+                        
+                        <div class="preview-container" id="previewContainer">
+                            <div class="preview-grid" id="previewGrid"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SUBMIT BUTTON -->
+                <button type="submit" name="add_product" class="submit-btn">Ürünü Ekle</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- CLASS POPUP -->
+    <div class="class-popup" id="classPopup">
+        <div class="popup-content">
+            <div class="popup-header">
+                <h3 class="popup-title">Sınıf
+		<h3 class="popup-title">Sınıf Seçin</h3>
+                <button type="button" class="close-popup" onclick="closeClassPopup()">×</button>
+            </div>
+            
+            <div class="class-grid">
+                <?php foreach ($classes as $class): ?>
+                    <div class="class-checkbox" onclick="toggleClass(this, '<?= $class ?>')">
+                        <div class="checkbox-custom">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M17.0001 9L10 16L7 13" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <span><?= $class ?></span>
+                        <input type="checkbox" name="target_classes[]" value="<?= $class ?>">
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            
+            <button type="button" class="variation-button" onclick="saveClasses()" style="width: 100%; margin-top: 20px;">Sınıfları Kaydet</button>
+        </div>
+    </div>
+    
+    <!-- VARYASYON POPUP -->
+    <div class="variation-popup" id="variationPopup">
+        <div class="popup-content">
+            <div class="popup-header">
+                <h3 class="popup-title">Varyasyon Ekle</h3>
+                <button type="button" class="close-popup" onclick="closeVariationPopup()">×</button>
+            </div>
+            
+            <!-- RENK VARYASYONU -->
+            <div class="variation-type">
+                <div class="variation-type-title">
+                    Renk
+                    <button type="button" class="add-custom-variation" onclick="addCustomVariation('renk')">+</button>
+                </div>
+                <div class="variation-options">
+                    <?php foreach ($preset_variations['renk'] as $renk): ?>
+                        <div class="variation-tag" onclick="toggleVariation(this, 'renk', '<?= $renk ?>')">
+                            <?= $renk ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <div id="custom-renk" style="display: none; margin-top: 12px;">
+                    <input type="text" class="add-custom-input" placeholder="Yeni renk">
+                    <button type="button" class="add-custom-btn" onclick="addCustomVariationValue('renk')">Ekle</button>
+                </div>
+            </div>
+            
+            <!-- BEDEN VARYASYONU -->
+            <div class="variation-type">
+                <div class="variation-type-title">
+                    Beden
+                    <button type="button" class="add-custom-variation" onclick="addCustomVariation('beden')">+</button>
+                </div>
+                <div class="variation-options">
+                    <?php foreach ($preset_variations['beden'] as $beden): ?>
+                        <div class="variation-tag" onclick="toggleVariation(this, 'beden', '<?= $beden ?>')">
+                            <?= $beden ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <div id="custom-beden" style="display: none; margin-top: 12px;">
+                    <input type="text" class="add-custom-input" placeholder="Yeni beden">
+                    <button type="button" class="add-custom-btn" onclick="addCustomVariationValue('beden')">Ekle</button>
+                </div>
+            </div>
+            
+            <!-- NUMARA VARYASYONU -->
+            <div class="variation-type">
+                <div class="variation-type-title">
+                    Numara
+                    <button type="button" class="add-custom-variation" onclick="addCustomVariation('numara')">+</button>
+                </div>
+                <div class="variation-options">
+                    <?php foreach ($preset_variations['numara'] as $numara): ?>
+                        <div class="variation-tag" onclick="toggleVariation(this, 'numara', '<?= $numara ?>')">
+                            <?= $numara ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <div id="custom-numara" style="display: none; margin-top: 12px;">
+                    <input type="text" class="add-custom-input" placeholder="Yeni numara">
+                    <button type="button" class="add-custom-btn" onclick="addCustomVariationValue('numara')">Ekle</button>
+                </div>
+            </div>
+            
+            <button type="button" class="variation-button" onclick="saveVariations()" style="width: 100%; margin-top: 20px;">Varyasyonları Kaydet</button>
+        </div>
+    </div>
+    
     <script>
         let selectedFiles = [];
-
+        let selectedVariations = {renk: [], beden: [], numara: []};
+        let selectedClasses = [];
+        let draggedItem = null;
+        
+        // Karakter sayacı
+        function updateCharCounter(textarea) {
+            const charCount = textarea.value.length;
+            document.getElementById('charCount').textContent = charCount;
+        }
+        
+        // Klavye kısayolu - CTRL + A
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && (e.key === 'a' || e.key === 'A')) {
+                e.preventDefault();
+                document.getElementById('searchInput').focus();
+            }
+        });
+        
+        // Arama refresh
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.value = '';
+                window.location.reload();
+            }
+        });
+        
+        // Search popup functions
+        function showSearchPopup() {
+            document.getElementById('searchPopup').style.display = 'block';
+        }
+        
+        function hideSearchPopup() {
+            setTimeout(() => {
+                document.getElementById('searchPopup').style.display = 'none';
+            }, 200);
+        }
+        
+        function filterSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const students = document.querySelectorAll('.student-item');
+            
+            students.forEach(student => {
+                const name = student.querySelector('h4').textContent.toLowerCase();
+                if (name.includes(query)) {
+                    student.style.display = 'flex';
+                } else {
+                    student.style.display = 'none';
+                }
+            });
+        }
+        
+        function goToStudent(name) {
+            window.location.href = 'student_profile.php?name=' + encodeURIComponent(name);
+        }
+        
+        function goToProducts() {
+            window.location.href = 'products.php';
+        }
+        
+        function goToOrders() {
+            window.location.href = 'admin_orders.php';
+        }
+        
+        function goToStudents() {
+            window.location.href = 'student_management.php';
+        }
+        
+        // Navigation popup
+        function toggleNavPopup() {
+            const popup = document.getElementById('navPopup');
+            popup.classList.toggle('show');
+        }
+        
+        // Close navigation popup when clicking outside
+        document.addEventListener('click', function(e) {
+            const popup = document.getElementById('navPopup');
+            const button = document.querySelector('.nav-button');
+            
+            if (!popup.contains(e.target) && !button.contains(e.target)) {
+                popup.classList.remove('show');
+            }
+        });
+        
+        // Sidebar toggle
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+        
+        // Submenu toggle
+        function toggleSubmenu(element) {
+            element.classList.toggle('open');
+        }
+        
+        // Class popup functions
+        function openClassPopup() {
+            document.getElementById('classPopup').style.display = 'flex';
+        }
+        
+        function closeClassPopup() {
+            document.getElementById('classPopup').style.display = 'none';
+        }
+        
+        function toggleClass(element, className) {
+            element.classList.toggle('selected');
+            const checkbox = element.querySelector('input[type="checkbox"]');
+            checkbox.checked = element.classList.contains('selected');
+        }
+        
+        function saveClasses() {
+            selectedClasses = [];
+            const checkboxes = document.querySelectorAll('.class-checkbox.selected');
+            
+            checkboxes.forEach(checkbox => {
+                const className = checkbox.querySelector('input').value;
+                selectedClasses.push(className);
+            });
+            
+            updateClassDisplay();
+            closeClassPopup();
+        }
+        
+        function updateClassDisplay() {
+            const container = document.getElementById('selectedClasses');
+            const tagsContainer = document.getElementById('classTags');
+            
+            if (selectedClasses.length > 0) {
+                container.style.display = 'block';
+                tagsContainer.innerHTML = '';
+                
+                selectedClasses.forEach(className => {
+                    const tag = document.createElement('div');
+                    tag.className = 'class-tag';
+                    tag.innerHTML = `
+                        ${className}
+                        <button type="button" class="remove-tag" onclick="removeClass('${className}')">×</button>
+                    `;
+                    tagsContainer.appendChild(tag);
+                });
+            } else {
+                container.style.display = 'none';
+            }
+        }
+        
+        function removeClass(className) {
+            selectedClasses = selectedClasses.filter(c => c !== className);
+            updateClassDisplay();
+            
+            // Popup'taki checkbox'ı da güncelle
+            const checkbox = document.querySelector(`.class-checkbox input[value="${className}"]`);
+            if (checkbox) {
+                checkbox.closest('.class-checkbox').classList.remove('selected');
+                checkbox.checked = false;
+            }
+        }
+        
+        // File upload system with drag & drop reordering
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const previewContainer = document.getElementById('previewContainer');
         const previewGrid = document.getElementById('previewGrid');
-        const submitBtn = document.getElementById('submitBtn');
-
-        // Bildirim göster ve URL temizle
-        <?php if ($notification): ?>
-            showNotification('<?= $notification ?>', '<?= $notification_type ?>');
-
-            setTimeout(() => {
-                const url = new URL(window.location);
-                url.searchParams.delete('success');
-                url.searchParams.delete('error');
-                window.history.replaceState({}, document.title, url.pathname);
-            }, 1000);
-        <?php endif; ?>
-
-        function showNotification(message, type) {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.textContent = message;
-            notification.onclick = hideNotification;
-            notification.id = 'notification';
-            document.body.appendChild(notification);
-
-            setTimeout(() => {
-                notification.classList.add('show');
-            }, 100);
-        }
-
-        function hideNotification() {
-            const notification = document.getElementById('notification');
-            if (notification) {
-                notification.classList.remove('show');
-                setTimeout(() => {
-                    notification.remove();
-                }, 500);
-            }
-        }
-
-        let sortable = Sortable.create(previewGrid, {
-            animation: 150,
-            swap: true,
-            swapClass: 'highlight',
-            onEnd: function(evt) {
-                if (evt.oldIndex !== evt.newIndex) {
-                    [selectedFiles[evt.oldIndex], selectedFiles[evt.newIndex]] =
-                    [selectedFiles[evt.newIndex], selectedFiles[evt.oldIndex]];
-                    updateFileInput();
-                }
-            }
-        });
-
+        
+        dropZone.addEventListener('click', () => fileInput.click());
+        
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            dropZone.classList.add('dragover');
+            dropZone.style.borderColor = '#050E1A';
         });
-
+        
         dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
+            dropZone.style.borderColor = '#ECEDEE';
         });
-
+        
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropZone.classList.remove('dragover');
+            dropZone.style.borderColor = '#ECEDEE';
             const files = Array.from(e.dataTransfer.files);
             handleFiles(files);
         });
-
-        dropZone.addEventListener('click', () => {
-            fileInput.click();
-        });
-
+        
         fileInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             handleFiles(files);
         });
-
+        
         function handleFiles(files) {
             files.forEach(file => {
                 if (file.type.startsWith('image/')) {
                     selectedFiles.push(file);
-                    createPreview(file);
+                    createPreview(file, selectedFiles.length - 1);
                 }
             });
-
+            
             if (selectedFiles.length > 0) {
                 previewContainer.style.display = 'block';
-                updateSubmitButton();
             }
         }
-
-        function createPreview(file) {
+        
+        function createPreview(file, index) {
             const reader = new FileReader();
-
+            
             reader.onload = function(e) {
                 const previewItem = document.createElement('div');
                 previewItem.className = 'preview-item';
-
+                previewItem.draggable = true;
+                previewItem.dataset.index = index;
+                
                 previewItem.innerHTML = `
-                    <img src="${e.target.result}" class="preview-image" alt="Preview">
+                    <img src="${e.target.result}" class="preview-image">
+                    ${index === 0 ? '<div class="main-image-indicator"></div>' : ''}
                     <div class="preview-overlay">
-                        <button type="button" class="preview-btn move-btn" title="Takas">⇄</button>
-                        <button type="button" class="preview-btn delete-btn" onclick="removeFile(this)" title="Sil">🗑️</button>
+                        <button type="button" class="delete-preview" onclick="removeFile(this)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M18 6V18C18 19.1046 17.1046 20 16 20H8C6.89543 20 6 19.1046 6 18V6M18 6H15M18 6H20M6 6H4M6 6H9M15 6V5C15 3.89543 14.1046 3 13 3H11C9.89543 3 9 3.89543 9 5V6M15 6H9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
                     </div>
                 `;
-
+                
+                // Drag events
+                previewItem.addEventListener('dragstart', handleDragStart);
+                previewItem.addEventListener('dragover', handleDragOver);
+                previewItem.addEventListener('drop', handleDrop);
+                previewItem.addEventListener('dragend', handleDragEnd);
+                
                 previewGrid.appendChild(previewItem);
             };
-
+            
             reader.readAsDataURL(file);
         }
-
+        
+        function handleDragStart(e) {
+            draggedItem = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            
+            if (this !== draggedItem) {
+                const draggedIndex = parseInt(draggedItem.dataset.index);
+                const targetIndex = parseInt(this.dataset.index);
+                
+                // Swap files in array
+                [selectedFiles[draggedIndex], selectedFiles[targetIndex]] = [selectedFiles[targetIndex], selectedFiles[draggedIndex]];
+                
+                // Refresh preview
+                refreshPreview();
+            }
+        }
+        
+        function handleDragEnd() {
+            this.classList.remove('dragging');
+            draggedItem = null;
+        }
+        
+        function refreshPreview() {
+            previewGrid.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                createPreview(file, index);
+            });
+        }
+        
         function removeFile(button) {
             const previewItem = button.closest('.preview-item');
-            const index = Array.from(previewGrid.children).indexOf(previewItem);
-
-            previewItem.classList.add('removing');
-
-            setTimeout(() => {
-                selectedFiles.splice(index, 1);
-                previewItem.remove();
-
-                if (selectedFiles.length === 0) {
-                    previewContainer.style.display = 'none';
-                }
-
-                updateFileInput();
-                updateSubmitButton();
-            }, 300);
+            const index = parseInt(previewItem.dataset.index);
+            
+            selectedFiles.splice(index, 1);
+            
+            if (selectedFiles.length === 0) {
+                previewContainer.style.display = 'none';
+            } else {
+                refreshPreview();
+            }
+            
+            updateFileInput();
         }
-
+        
         function updateFileInput() {
             const dataTransfer = new DataTransfer();
             selectedFiles.forEach(file => {
@@ -339,13 +1922,152 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             });
             fileInput.files = dataTransfer.files;
         }
-
-        function updateSubmitButton() {
-            if (selectedFiles.length > 0) {
-                submitBtn.innerHTML = `Ürün Ekle (${selectedFiles.length} resim)`;
+        
+        // Variation system
+        function openVariationPopup() {
+            document.getElementById('variationPopup').style.display = 'flex';
+        }
+        
+        function closeVariationPopup() {
+            document.getElementById('variationPopup').style.display = 'none';
+        }
+        
+        function toggleVariation(element, type, value) {
+            element.classList.toggle('selected');
+            
+            if (element.classList.contains('selected')) {
+                selectedVariations[type].push(value);
             } else {
-                submitBtn.innerHTML = 'Ürün Ekle';
+                const index = selectedVariations[type].indexOf(value);
+                if (index > -1) {
+                    selectedVariations[type].splice(index, 1);
+                }
             }
+        }
+        
+        function addCustomVariation(type) {
+            document.getElementById(`custom-${type}`).style.display = 'block';
+        }
+        
+        function addCustomVariationValue(type) {
+            const input = document.querySelector(`#custom-${type} .add-custom-input`);
+            const value = input.value.trim();
+            
+            if (value) {
+                const variationOptions = document.querySelector(`#custom-${type}`).previousElementSibling;
+                const newTag = document.createElement('div');
+                newTag.className = 'variation-tag selected';
+                newTag.textContent = value;
+                newTag.onclick = () => toggleVariation(newTag, type, value);
+                
+                variationOptions.appendChild(newTag);
+                selectedVariations[type].push(value);
+                
+                input.value = '';
+                document.getElementById(`custom-${type}`).style.display = 'none';
+            }
+        }
+        
+        function saveVariations() {
+            updateVariationDisplay();
+            closeVariationPopup();
+        }
+        
+        function updateVariationDisplay() {
+            const container = document.getElementById('selectedVariations');
+            const tagsContainer = document.getElementById('variationTags');
+            
+            let hasVariations = false;
+            tagsContainer.innerHTML = '';
+            
+            Object.keys(selectedVariations).forEach(type => {
+                if (selectedVariations[type].length > 0) {
+                    hasVariations = true;
+                    selectedVariations[type].forEach(value => {
+                        const tag = document.createElement('div');
+                        tag.className = 'variation-tag-display';
+                        tag.innerHTML = `
+                            ${type}: ${value}
+                            <button type="button" class="remove-tag" onclick="removeVariation('${type}', '${value}')">×</button>
+                        `;
+                        tagsContainer.appendChild(tag);
+                    });
+                }
+            });
+            
+            container.style.display = hasVariations ? 'block' : 'none';
+        }
+        
+        function removeVariation(type, value) {
+            const index = selectedVariations[type].indexOf(value);
+            if (index > -1) {
+                selectedVariations[type].splice(index, 1);
+            }
+            updateVariationDisplay();
+            
+            // Popup'taki seçimi de güncelle
+            const variationElement = document.querySelector(`.variation-tag[onclick*="'${type}', '${value}'"]`);
+            if (variationElement) {
+                variationElement.classList.remove('selected');
+            }
+        }
+        
+        // Form submit - add hidden inputs
+        document.getElementById('productForm').addEventListener('submit', function(e) {
+            // Add selected classes as hidden inputs
+            selectedClasses.forEach(className => {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'target_classes[]';
+                hiddenInput.value = className;
+                this.appendChild(hiddenInput);
+            });
+        });
+        
+        // Notification system
+        <?php if ($notification): ?>
+            showNotification('<?= $notification ?>', '<?= $notification_type ?>');
+            
+            setTimeout(() => {
+                const url = new URL(window.location);
+                url.searchParams.delete('success');
+                url.searchParams.delete('error');
+                url.searchParams.delete('warning');
+                window.history.replaceState({}, document.title, url.pathname);
+            }, 1000);
+        <?php endif; ?>
+        
+        function showNotification(message, type) {
+            const alert = document.createElement('div');
+            alert.className = 'notification-alert';
+            
+            let iconSvg = '';
+            if (type === 'success') {
+                iconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.0001 9L10 16L7 13" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            } else if (type === 'error') {
+                iconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 8L8 16M8.00001 8L16 16" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            } else if (type === 'warning') {
+                iconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16.99V17M12 7V14" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            }
+            
+            alert.innerHTML = `
+                <div class="notification-icon ${type}">
+                    ${iconSvg}
+                </div>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.classList.add('show');
+            }, 100);
+            
+            // Click to close
+            alert.onclick = () => {
+                alert.classList.remove('show');
+                setTimeout(() => alert.remove(), 300);
+            };
         }
     </script>
 </body>
