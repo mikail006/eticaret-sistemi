@@ -30,13 +30,6 @@ $preset_variations = [
     'numara' => ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45']
 ];
 
-// Örnek veriler (gerçek veritabanından gelecek)
-$sample_students = [
-    ['name' => 'Ahmet Yılmaz', 'class' => '5.sınıf', 'photo' => 'default.jpg'],
-    ['name' => 'Ayşe Kaya', 'class' => '6.sınıf', 'photo' => 'default.jpg'],
-    ['name' => 'Mehmet Özkan', 'class' => '7.sınıf', 'photo' => 'default.jpg'],
-];
-
 // Ürün ekleme
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
     try {
@@ -111,20 +104,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             display: flex;
         }
         
-        /* SIDEBAR - DÜZENLENDİ */
         .sidebar {
             width: 300px;
             background: white;
             height: 100vh;
             position: fixed;
-            left: 15px;
+            left: 0;
             top: 0;
             padding: 24px 0;
             box-shadow: 2px 0 10px rgba(0,0,0,0.05);
             overflow-y: auto;
         }
         
-        /* LOGO */
         .logo {
             padding: 0 24px;
             margin-bottom: 20px;
@@ -137,7 +128,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             margin-bottom: 16px;
         }
         
-        /* SEARCH - İYİLEŞTİRİLDİ */
         .search-container {
             padding: 0 24px;
             margin-bottom: 32px;
@@ -177,7 +167,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
         
         .search-hotkey {
             position: absolute;
-            right: 12px;
+            right: 16px;
             background: #ECEDEE;
             color: #666;
             padding: 4px 8px;
@@ -186,7 +176,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             font-weight: 600;
         }
         
-        /* SEARCH POPUP */
         .search-popup {
             position: absolute;
             top: calc(100% + 10px);
@@ -201,62 +190,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             display: none;
         }
         
-        .search-results {
-            padding: 20px;
-        }
-        
-        .search-category {
-            margin-bottom: 24px;
-        }
-        
-        .search-category-title {
-            font-size: 14px;
-            font-weight: 700;
-            color: #666;
-            text-transform: uppercase;
-            margin-bottom: 12px;
-            letter-spacing: 0.5px;
-        }
-        
-        .search-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: background 0.2s;
-            margin-bottom: 8px;
-        }
-        
-        .search-item:hover {
-            background: #F8F9FA;
-        }
-        
-        .student-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #ECEDEE;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 16px;
-        }
-        
-        .search-item-info h4 {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
-        
-        .search-item-info p {
-            font-size: 12px;
-            color: #666;
-        }
-        
-        /* NAVIGATION */
         .nav-section {
             margin-bottom: 28px;
         }
@@ -301,7 +234,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             height: 20px;
         }
         
-        /* SUBMENU */
         .nav-item.has-submenu > .nav-link {
             cursor: pointer;
         }
@@ -315,14 +247,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             display: block;
         }
         
-        /* SUBMENU ÇIZGISI */
         .nav-item.has-submenu.open::before {
             content: '';
             position: absolute;
             left: 34px;
             top: 48px;
-            bottom: 0;
-            width: 2px;
+            bottom: 12px;
+            width: 1px;
             background: #ECEDEE;
             z-index: 1;
         }
@@ -347,7 +278,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             color: #050E1A;
         }
         
-        /* AKTİF SUBMENU ÇIZGISI */
         .submenu-item.active::before {
             content: '';
             position: absolute;
@@ -359,7 +289,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             z-index: 2;
         }
         
-        /* USER PROFILE */
         .user-profile {
             position: absolute;
             bottom: 24px;
@@ -393,7 +322,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             height: 40px;
             border-radius: 50%;
             background: #CCCCCC;
-            color: white;
+            color: #050E1A;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -413,12 +342,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             color: #666;
         }
         
-        /* MAIN CONTENT - %15 GENİŞLETİLDİ */
         .main-content {
-            margin-left: 325px;
+            margin-left: 315px;
             flex: 1;
             padding: 40px;
-            max-width: calc(100vw - 325px);
+            max-width: calc(100vw - 315px);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -427,11 +355,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
         
         .header-container {
             display: flex;
-            justify-content: flex-start;
+            justify-content: space-between;
             align-items: center;
             margin-bottom: 30px;
             width: 100%;
-            max-width: 1075px;
+            max-width: 1182px;
         }
         
         .page-title {
@@ -440,11 +368,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             color: #050E1A;
         }
         
-        /* NAVIGATION BUTTON - SAĞ ALT */
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .test-button {
+            background: #22c55e;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        
+        .test-button.error {
+            background: #ef4444;
+        }
+        
+        .test-button.warning {
+            background: #f59e0b;
+        }
+        
         .nav-button {
-            position: fixed;
-            bottom: 50px;
-            right: 50px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 18px 32px;
@@ -455,8 +405,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             cursor: pointer;
             font-family: 'Plus Jakarta Sans', sans-serif;
             box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
-            z-index: 100;
             transition: all 0.3s;
+            margin-left: 16px;
         }
         
         .nav-button:hover {
@@ -464,12 +414,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4);
         }
         
-        /* NAVIGATION POPUP */
         .nav-popup {
             position: fixed;
-            top: 60px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-20px);
+            bottom: 170px;
+            right: 50px;
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.15);
@@ -477,13 +425,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             opacity: 0;
             visibility: hidden;
             transition: all 0.3s;
-            min-width: 300px;
+            min-width: 320px;
         }
         
         .nav-popup.show {
             opacity: 1;
             visibility: visible;
-            transform: translateX(-50%) translateY(0);
         }
         
         .nav-popup-content {
@@ -526,13 +473,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             font-weight: 600;
         }
         
-        /* FORM CONTAINER - %15 GENİŞLETİLDİ */
         .form-container {
-            max-width: 1075px;
+            max-width: 1182px;
             width: 100%;
         }
         
-        /* FORM */
         .product-form {
             background: white;
             border-radius: 20px;
@@ -600,7 +545,175 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             border-color: #050E1A;
         }
         
-        /* CATEGORY DROPDOWN */
+        .barcode-container {
+            position: relative;
+        }
+        
+        .scan-button {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #F0F0F0;
+            border: 1px solid #ECEDEE;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.2s;
+        }
+        
+        .scan-button:hover {
+            background: #E0E0E0;
+            border-color: #050E1A;
+        }
+        
+        .scan-button svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .barcode-popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .barcode-popup-content {
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            width: 500px;
+            height: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .barcode-scanner {
+            width: 250px;
+            height: 250px;
+            border: 3px solid #ECEDEE;
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+        
+        .scan-line {
+            position: absolute;
+            top: -3px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #22c55e, transparent);
+            transform: translateY(0);
+            opacity: 0;
+            animation: none;
+        }
+        
+        .scan-line.scanning {
+            opacity: 1;
+            animation: scanDown 2s ease-in-out infinite;
+        }
+        
+        @keyframes scanDown {
+            0% {
+                transform: translateY(0);
+                box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
+            }
+            50% {
+                transform: translateY(250px);
+                box-shadow: 0 0 30px rgba(34, 197, 94, 0.8);
+            }
+            100% {
+                transform: translateY(0);
+                box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
+            }
+        }
+        
+        .scanner-frame {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 2px solid transparent;
+            border-radius: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .scanner-frame.scanning {
+            border-color: #22c55e;
+            box-shadow: inset 0 0 0 2px rgba(34, 197, 94, 0.3);
+        }
+        
+        .scan-status {
+            font-size: 18px;
+            font-weight: 600;
+            color: #050E1A;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .scan-status.failed {
+            color: #ef4444;
+        }
+        
+        .stars-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        
+        .star {
+            position: absolute;
+            color: #22c55e;
+            font-size: 16px;
+            opacity: 0;
+            animation: starFall 3s ease-in-out infinite;
+        }
+        
+        @keyframes starFall {
+            0% {
+                opacity: 1;
+                transform: translateY(-20px) rotate(0deg);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(520px) rotate(360deg);
+            }
+        }
+        
+        .close-barcode-popup {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        
         .category-container {
             position: relative;
         }
@@ -627,7 +740,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             border-color: #050E1A;
         }
         
-        /* TEXTAREA - KARAKTER SAYACI */
         .textarea-container {
             position: relative;
         }
@@ -635,21 +747,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
         .form-input[name="description"] {
             resize: vertical;
             min-height: 120px;
-            max-width: 100%;
+            padding-right: 80px;
         }
         
         .char-counter {
             position: absolute;
-            bottom: 8px;
-            right: 12px;
+            bottom: 12px;
+            right: 16px;
             font-size: 12px;
             color: #666;
-            background: white;
-            padding: 2px 6px;
-            border-radius: 4px;
+            background: #FAFAFB;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid #ECEDEE;
         }
         
-        /* FİYAT ALANI */
         .price-container {
             position: relative;
         }
@@ -662,7 +774,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             display: flex;
             align-items: center;
             gap: 6px;
-            background: white;
+            background: #FAFAFB;
             padding: 4px 8px;
             border-radius: 6px;
             border: 1px solid #ECEDEE;
@@ -681,7 +793,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             color: #050E1A;
         }
         
-        /* SAYI INPUT */
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button {
             -webkit-appearance: none;
@@ -690,9 +801,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
         
         input[type="number"] {
             -moz-appearance: textfield;
+            padding-right: 80px;
         }
         
-        /* CLASS SELECTION */
         .class-selection {
             margin-top: 12px;
         }
@@ -739,7 +850,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             justify-content: center;
         }
         
-        /* POPUPS */
         .class-popup, .variation-popup {
             display: none;
             position: fixed;
@@ -845,7 +955,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             display: none;
         }
         
-        /* VARIATION SYSTEM */
         .variation-section {
             margin-bottom: 24px;
         }
@@ -963,7 +1072,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             font-size: 14px;
         }
         
-        /* UPLOAD AREA */
         .upload-container {
             margin-bottom: 24px;
         }
@@ -1009,7 +1117,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             display: none;
         }
         
-        /* PREVIEW - YENİ ÖZELLİKLER */
         .preview-container {
             margin-top: 24px;
             display: none;
@@ -1086,7 +1193,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             transform: rotate(5deg);
         }
         
-        /* SUBMIT BUTTON */
+        .form-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 32px;
+        }
+        
         .submit-btn {
             background: #050E1A;
             color: white;
@@ -1097,15 +1209,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             font-weight: 600;
             cursor: pointer;
             font-family: 'Plus Jakarta Plus', sans-serif;
-            width: 100%;
-            margin-top: 32px;
         }
         
         .submit-btn:hover {
             background: #1a2332;
         }
         
-        /* NOTIFICATION ALERT */
         .notification-alert {
             position: fixed;
             bottom: 100px;
@@ -1159,7 +1268,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             height: 14px;
         }
         
-        /* MOBILE */
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -1220,21 +1328,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
     </style>
 </head>
 <body>
-    <!-- MOBILE HEADER -->
     <div class="mobile-header">
         <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
         <h2>Gebze Hisar Store</h2>
         <div></div>
     </div>
 
-    <!-- SIDEBAR -->
     <div class="sidebar" id="sidebar">
-        <!-- LOGO -->
         <div class="logo">
             <h1>Gebze Hisar Store</h1>
         </div>
         
-        <!-- SEARCH -->
         <div class="search-container">
             <div class="search-box">
                 <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1244,50 +1348,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                 <div class="search-hotkey">CTRL + A</div>
             </div>
             
-            <!-- SEARCH POPUP -->
             <div class="search-popup" id="searchPopup">
-                <div class="search-results">
-                    <div class="search-category">
-                        <div class="search-category-title">Öğrenciler</div>
-                        <div id="studentResults">
-                            <?php foreach ($sample_students as $student): ?>
-                                <div class="search-item student-item" onclick="goToStudent('<?= $student['name'] ?>')">
-                                    <div class="student-avatar"><?= substr($student['name'], 0, 1) ?></div>
-                                    <div class="search-item-info">
-                                        <h4><?= $student['name'] ?></h4>
-                                        <p><?= $student['class'] ?></p>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    
-                    <div class="search-category">
-                        <div class="search-category-title">Ürünler</div>
-                        <div class="search-item" onclick="goToProducts()">
-                            <div class="student-avatar">Ü</div>
-                            <div class="search-item-info">
-                                <h4>Tüm Ürünler</h4>
-                                <p>Ürün listesini görüntüle</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="search-category">
-                        <div class="search-category-title">Siparişler</div>
-                        <div class="search-item" onclick="goToOrders()">
-                            <div class="student-avatar">S</div>
-                            <div class="search-item-info">
-                                <h4>Tüm Siparişler</h4>
-                                <p>Sipariş listesini görüntüle</p>
-                            </div>
-                        </div>
-                    </div>
+                <div style="padding: 40px 20px; text-align: center; color: #666; font-size: 16px;">
+                    Arama sonucu bulunamadı
                 </div>
             </div>
         </div>
         
-        <!-- NAVIGATION -->
         <div class="nav-section">
             <div class="nav-title">GENEL</div>
             <ul class="nav-menu">
@@ -1345,7 +1412,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             </ul>
         </div>
         
-        <!-- AYARLAR SEKSİYONU -->
         <div class="nav-section">
             <div class="nav-title">AYARLAR</div>
             <ul class="nav-menu">
@@ -1379,7 +1445,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             </ul>
         </div>
         
-        <!-- USER PROFILE -->
         <div class="user-profile">
             <div class="user-card" onclick="window.location.href='/admin'">
                 <div class="user-info">
@@ -1393,37 +1458,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
         </div>
     </div>
 
-    <!-- NAVIGATION BUTTON -->
-    <button class="nav-button" onclick="toggleNavPopup()">Navigasyon</button>
-    
-    <!-- NAVIGATION POPUP -->
-    <div class="nav-popup" id="navPopup">
-        <div class="nav-popup-content">
-            <div class="nav-popup-title">Hızlı Erişim</div>
-            <div class="nav-option" onclick="goToOrders()">
-                <div class="nav-option-icon">📋</div>
-                <div class="nav-option-text">Sipariş Ara</div>
-            </div>
-            <div class="nav-option" onclick="goToStudents()">
-                <div class="nav-option-icon">👤</div>
-                <div class="nav-option-text">Öğrenci Ekle</div>
-            </div>
-            <div class="nav-option" onclick="goToProducts()">
-                <div class="nav-option-icon">📦</div>
-                <div class="nav-option-text">Ürün Ekle</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MAIN CONTENT -->
     <div class="main-content">
         <div class="header-container">
             <h1 class="page-title">Yeni Ürün Ekle</h1>
+            <div class="header-buttons">
+                <button class="test-button" onclick="testNotification('success')">Ürün Eklendi</button>
+                <button class="test-button error" onclick="testNotification('error')">Ürün Eklenemedi</button>
+                <button class="test-button warning" onclick="testNotification('warning')">Düzenlemek İstediğinize Emin Misiniz</button>
+                <button class="nav-button" onclick="toggleNavPopup()">Navigasyon</button>
+            </div>
+        </div>
+        
+        <div class="nav-popup" id="navPopup">
+            <div class="nav-popup-content">
+                <div class="nav-popup-title">Hızlı Erişim</div>
+                <div class="nav-option" onclick="goToOrders()">
+                    <div class="nav-option-icon">📋</div>
+                    <div class="nav-option-text">Sipariş Ara</div>
+                </div>
+                <div class="nav-option" onclick="goToStudents()">
+                    <div class="nav-option-icon">👤</div>
+                    <div class="nav-option-text">Öğrenci Ekle</div>
+                </div>
+                <div class="nav-option" onclick="goToProducts()">
+                    <div class="nav-option-icon">📦</div>
+                    <div class="nav-option-text">Ürün Ekle</div>
+                </div>
+                <div class="nav-option" onclick="goToAI()">
+                    <div class="nav-option-icon">🤖</div>
+                    <div class="nav-option-text">AI (Yapay Zeka)</div>
+                </div>
+            </div>
         </div>
         
         <div class="form-container">
             <form method="POST" enctype="multipart/form-data" class="product-form" id="productForm">
-                <!-- ÜRÜN BİLGİLERİ -->
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Ürün Adı <span class="required">*</span></label>
@@ -1459,7 +1528,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                     </div>
                     <div class="form-group">
                         <label class="form-label">Barkod Numarası</label>
-                        <input type="text" name="barcode" class="form-input" placeholder="Barkod numarasını girin">
+                        <div class="barcode-container">
+                            <input type="text" name="barcode" class="form-input" placeholder="Barkod numarasını girin" id="barcodeInput">
+                            <div class="scan-button" onclick="openBarcodeScanner()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M20 20L15.8033 15.8033M15.8033 15.8033C17.1605 14.4461 18 12.5711 18 10.5C18 6.35786 14.6421 3 10.5 3C6.35786 3 3 6.35786 3 10.5C3 14.6421 6.35786 18 10.5 18C12.5711 18 14.4461 17.1605 15.8033 15.8033Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Tarat
+                            </div>
+                        </div>
                     </div>
                     <div></div>
                 </div>
@@ -1468,15 +1545,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                     <div class="form-group">
                         <label class="form-label">Ürün Açıklaması <span class="required">*</span></label>
                         <div class="textarea-container">
-                            <textarea name="description" class="form-input" rows="4" placeholder="Ürün açıklamasını yazın" maxlength="1000" required oninput="updateCharCounter(this)"></textarea>
+                            <textarea name="description" class="form-input" rows="4" placeholder="Ürün açıklamasını yazın" maxlength="2500" required oninput="updateCharCounter(this)"></textarea>
                             <div class="char-counter">
-                                <span id="charCount">0</span>/1000
+                                <span id="charCount">0</span>/2500
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- SINIF SEÇİMİ -->
                 <div class="form-full">
                     <div class="form-group">
                         <label class="form-label">
@@ -1492,7 +1568,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                     </div>
                 </div>
                 
-                <!-- VARYASYON SEKSİYONU -->
                 <div class="form-full">
                     <div class="variation-section">
                         <div class="form-group">
@@ -1506,14 +1581,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                     </div>
                 </div>
                 
-                <!-- RESİM YÜKLEME -->
                 <div class="upload-container">
                     <div class="form-group">
                         <label class="form-label">Ürün Resimleri</label>
                         <div class="drop-zone" id="dropZone">
                             <div class="upload-icon">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M4.02693 18.329C4.18385 19.277 5.0075 20 6 20H18C19.1046 20 20 19.1046 20 18V14.1901M4.02693 18.329C4.00922 18.222 4 18.1121 4 18V6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V14.1901M4.02693 18.329L7.84762 14.5083C8.52765 13.9133 9.52219 13.8482 10.274 14.3494L10.7832 14.6888C11.5078 15.1719 12.4619 15.1305 13.142 14.5865L15.7901 12.4679C16.4651 11.9279 17.4053 11.8856 18.1228 12.3484C18.2023 12.3997 18.2731 12.4632 18.34 12.5302L20 14.1901M11 9C11 10.1046 10.1046 11 9 11C7.89543 11 7 10.1046 7 9C7 7.89543 7.89543 7 9 7C10.1046 7 11 7.89543 11 9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M4.02693 18.329C4.18385 19.277 5.0075 20 6 20H18C19.1046 20 20 19.1046 20 18V14.1901M4.02693 18.329C4.00922 18.222 4 18.1121 4 18V6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V14.1901M4.02693 18.329L7.84762 14.5083C8.52765 13.9133 9.52219 13.8482 10.274 14.3494L10.7832 14.6888C11.<path d="M4.02693 18.329C4.18385 19.277 5.0075 20 6 20H18C19.1046 20 20 19.1046 20 18V14.1901M4.02693 18.329C4.00922 18.222 4 18.1121 4 18V6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V14.1901M4.02693 18.329L7.84762 14.5083C8.52765 13.9133 9.52219 13.8482 10.274 14.3494L10.7832 14.6888C11.5078 15.1719 12.4619 15.1305 13.142 14.5865L15.7901 12.4679C16.4651 11.9279 17.4053 11.8856 18.1228 12.3484C18.2023 12.3997 18.2731 12.4632 18.34 12.5302L20 14.1901M11 9C11 10.1046 10.1046 11 9 11C7.89543 11 7 10.1046 7 9C7 7.89543 7.89543 7 9 7C10.1046 7 11 7.89543 11 9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                             </div>
                             <div class="upload-text">Resimleri buraya sürükleyin veya tıklayın</div>
@@ -1527,18 +1601,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                     </div>
                 </div>
                 
-                <!-- SUBMIT BUTTON -->
-                <button type="submit" name="add_product" class="submit-btn">Ürünü Ekle</button>
+                <div class="form-footer">
+                    <button type="submit" name="add_product" class="submit-btn">Yeni Ürün Ekle</button>
+                </div>
             </form>
         </div>
     </div>
     
-    <!-- CLASS POPUP -->
     <div class="class-popup" id="classPopup">
         <div class="popup-content">
             <div class="popup-header">
-                <h3 class="popup-title">Sınıf
-		<h3 class="popup-title">Sınıf Seçin</h3>
+                <h3 class="popup-title">Sınıf Seçin</h3>
                 <button type="button" class="close-popup" onclick="closeClassPopup()">×</button>
             </div>
             
@@ -1560,7 +1633,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
         </div>
     </div>
     
-    <!-- VARYASYON POPUP -->
     <div class="variation-popup" id="variationPopup">
         <div class="popup-content">
             <div class="popup-header">
@@ -1568,7 +1640,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                 <button type="button" class="close-popup" onclick="closeVariationPopup()">×</button>
             </div>
             
-            <!-- RENK VARYASYONU -->
             <div class="variation-type">
                 <div class="variation-type-title">
                     Renk
@@ -1587,7 +1658,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                 </div>
             </div>
             
-            <!-- BEDEN VARYASYONU -->
             <div class="variation-type">
                 <div class="variation-type-title">
                     Beden
@@ -1606,7 +1676,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                 </div>
             </div>
             
-            <!-- NUMARA VARYASYONU -->
             <div class="variation-type">
                 <div class="variation-type-title">
                     Numara
@@ -1629,19 +1698,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
         </div>
     </div>
     
+    <div class="barcode-popup" id="barcodePopup">
+        <div class="barcode-popup-content">
+            <button class="close-barcode-popup" onclick="closeBarcodeScanner()">×</button>
+            
+            <div class="barcode-scanner">
+                <div class="scanner-frame" id="scannerFrame"></div>
+                <div class="scan-line" id="scanLine"></div>
+            </div>
+            
+            <div class="scan-status" id="scanStatus">Tarama yapılıyor...</div>
+            
+            <div class="stars-container" id="starsContainer"></div>
+        </div>
+    </div>
+    
     <script>
         let selectedFiles = [];
         let selectedVariations = {renk: [], beden: [], numara: []};
         let selectedClasses = [];
         let draggedItem = null;
         
-        // Karakter sayacı
         function updateCharCounter(textarea) {
             const charCount = textarea.value.length;
             document.getElementById('charCount').textContent = charCount;
         }
         
-        // Klavye kısayolu - CTRL + A
         document.addEventListener('keydown', function(e) {
             if (e.ctrlKey && (e.key === 'a' || e.key === 'A')) {
                 e.preventDefault();
@@ -1649,16 +1731,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             }
         });
         
-        // Arama refresh
-        document.getElementById('searchInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                this.value = '';
-                window.location.reload();
+        function testNotification(type) {
+            let message = '';
+            if (type === 'success') {
+                message = 'Ürün başarıyla eklendi!';
+            } else if (type === 'error') {
+                message = 'Ürün eklenemedi, hata oluştu!';
+            } else if (type === 'warning') {
+                message = 'Düzenlemek istediğinize emin misiniz?';
             }
-        });
+            showNotification(message, type);
+        }
         
-        // Search popup functions
+        function openBarcodeScanner() {
+            document.getElementById('barcodePopup').style.display = 'flex';
+            startScanning();
+        }
+
+        function closeBarcodeScanner() {
+            document.getElementById('barcodePopup').style.display = 'none';
+            stopScanning();
+        }
+
+        function startScanning() {
+            const scanLine = document.getElementById('scanLine');
+            const scannerFrame = document.getElementById('scannerFrame');
+            const scanStatus = document.getElementById('scanStatus');
+            
+            scanLine.classList.add('scanning');
+            scannerFrame.classList.add('scanning');
+            scanStatus.textContent = 'Tarama yapılıyor...';
+            scanStatus.classList.remove('failed');
+            
+            createStars();
+            
+            setTimeout(() => {
+                scanStatus.textContent = 'Tarama başarısız';
+                scanStatus.classList.add('failed');
+                stopScanning();
+            }, 15000);
+        }
+
+        function stopScanning() {
+            const scanLine = document.getElementById('scanLine');
+            const scannerFrame = document.getElementById('scannerFrame');
+            
+            scanLine.classList.remove('scanning');
+            scannerFrame.classList.remove('scanning');
+            
+            document.getElementById('starsContainer').innerHTML = '';
+        }
+
+        function createStars() {
+            const container = document.getElementById('starsContainer');
+            const stars = ['★', '✦', '✧', '⭐', '✨'];
+            
+            const starInterval = setInterval(() => {
+                if (document.getElementById('barcodePopup').style.display === 'flex') {
+                    const star = document.createElement('div');
+                    star.className = 'star';
+                    star.textContent = stars[Math.floor(Math.random() * stars.length)];
+                    star.style.left = Math.random() * 100 + '%';
+                    star.style.animationDuration = (2 + Math.random() * 2) + 's';
+                    star.style.animationDelay = Math.random() * 1 + 's';
+                    
+                    container.appendChild(star);
+                    
+                    setTimeout(() => {
+                        if (star.parentNode) {
+                            star.parentNode.removeChild(star);
+                        }
+                    }, 3000);
+                } else {
+                    clearInterval(starInterval);
+                }
+            }, 300);
+        }
+        
         function showSearchPopup() {
             document.getElementById('searchPopup').style.display = 'block';
         }
@@ -1670,42 +1819,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
         }
         
         function filterSearch() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const students = document.querySelectorAll('.student-item');
-            
-            students.forEach(student => {
-                const name = student.querySelector('h4').textContent.toLowerCase();
-                if (name.includes(query)) {
-                    student.style.display = 'flex';
-                } else {
-                    student.style.display = 'none';
-                }
-            });
+            // Boş döndür
         }
         
-        function goToStudent(name) {
-            window.location.href = 'student_profile.php?name=' + encodeURIComponent(name);
-        }
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.value = '';
+                filterSearch();
+            }
+        });
         
-        function goToProducts() {
-            window.location.href = 'products.php';
-        }
-        
-        function goToOrders() {
-            window.location.href = 'admin_orders.php';
-        }
-        
-        function goToStudents() {
-            window.location.href = 'student_management.php';
-        }
-        
-        // Navigation popup
         function toggleNavPopup() {
             const popup = document.getElementById('navPopup');
             popup.classList.toggle('show');
         }
         
-        // Close navigation popup when clicking outside
         document.addEventListener('click', function(e) {
             const popup = document.getElementById('navPopup');
             const button = document.querySelector('.nav-button');
@@ -1715,17 +1844,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             }
         });
         
-        // Sidebar toggle
+        function goToOrders() {
+            window.location.href = 'admin_orders.php';
+        }
+        
+        function goToStudents() {
+            window.location.href = 'student_management.php';
+        }
+        
+        function goToProducts() {
+            window.location.href = 'products.php';
+        }
+        
+        function goToAI() {
+            window.location.href = 'ai_assistant.php';
+        }
+        
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
         }
         
-        // Submenu toggle
         function toggleSubmenu(element) {
             element.classList.toggle('open');
         }
         
-        // Class popup functions
         function openClassPopup() {
             document.getElementById('classPopup').style.display = 'flex';
         }
@@ -1779,7 +1921,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             selectedClasses = selectedClasses.filter(c => c !== className);
             updateClassDisplay();
             
-            // Popup'taki checkbox'ı da güncelle
             const checkbox = document.querySelector(`.class-checkbox input[value="${className}"]`);
             if (checkbox) {
                 checkbox.closest('.class-checkbox').classList.remove('selected');
@@ -1787,7 +1928,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             }
         }
         
-        // File upload system with drag & drop reordering
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const previewContainer = document.getElementById('previewContainer');
@@ -1850,7 +1990,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                     </div>
                 `;
                 
-                // Drag events
                 previewItem.addEventListener('dragstart', handleDragStart);
                 previewItem.addEventListener('dragover', handleDragOver);
                 previewItem.addEventListener('drop', handleDrop);
@@ -1880,10 +2019,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                 const draggedIndex = parseInt(draggedItem.dataset.index);
                 const targetIndex = parseInt(this.dataset.index);
                 
-                // Swap files in array
                 [selectedFiles[draggedIndex], selectedFiles[targetIndex]] = [selectedFiles[targetIndex], selectedFiles[draggedIndex]];
                 
-                // Refresh preview
                 refreshPreview();
             }
         }
@@ -1923,7 +2060,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             fileInput.files = dataTransfer.files;
         }
         
-        // Variation system
         function openVariationPopup() {
             document.getElementById('variationPopup').style.display = 'flex';
         }
@@ -2005,16 +2141,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             }
             updateVariationDisplay();
             
-            // Popup'taki seçimi de güncelle
             const variationElement = document.querySelector(`.variation-tag[onclick*="'${type}', '${value}'"]`);
             if (variationElement) {
                 variationElement.classList.remove('selected');
             }
         }
         
-        // Form submit - add hidden inputs
         document.getElementById('productForm').addEventListener('submit', function(e) {
-            // Add selected classes as hidden inputs
             selectedClasses.forEach(className => {
                 const hiddenInput = document.createElement('input');
                 hiddenInput.type = 'hidden';
@@ -2024,7 +2157,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
             });
         });
         
-        // Notification system
         <?php if ($notification): ?>
             showNotification('<?= $notification ?>', '<?= $notification_type ?>');
             
@@ -2063,7 +2195,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
                 alert.classList.add('show');
             }, 100);
             
-            // Click to close
             alert.onclick = () => {
                 alert.classList.remove('show');
                 setTimeout(() => alert.remove(), 300);
